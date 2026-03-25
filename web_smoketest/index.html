@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Smart Tourist Backend Smoke Test</title>
+    <style>
+      body { font-family: system-ui, Arial, sans-serif; margin: 24px; max-width: 900px; }
+      input, textarea, button { font: inherit; }
+      .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+      textarea { width: 100%; min-height: 110px; }
+      pre { background: #111; color: #eee; padding: 12px; overflow: auto; }
+      .card { border: 1px solid #ddd; border-radius: 8px; padding: 12px; margin-top: 12px; }
+      label { font-weight: 600; }
+      .muted { color: #666; }
+    </style>
+  </head>
+  <body>
+    <h2>Backend Smoke Test</h2>
+    <p class="muted">Paste a Supabase access token, then try calls. This is only to verify backend wiring.</p>
+
+    <div class="card">
+      <div class="row">
+        <label>Backend base URL</label>
+        <input id="baseUrl" style="min-width: 360px" value="http://localhost:8000" />
+        <button onclick="health()">GET /health</button>
+        <button onclick="me()">GET /me</button>
+      </div>
+      <div style="margin-top: 10px">
+        <label>Bearer token (Supabase access_token)</label>
+        <textarea id="token" placeholder="Paste Supabase access_token here"></textarea>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Zones</h3>
+      <div class="row">
+        <button onclick="listZones()">GET /zones</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Location ping</h3>
+      <div class="row">
+        <label>lat</label><input id="lat" value="12.9716" />
+        <label>lng</label><input id="lng" value="77.5946" />
+        <button onclick="sendPing()">POST /location/ping</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>SOS</h3>
+      <div class="row">
+        <button onclick="sendSos()">POST /alerts/sos</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Authority nearby alerts</h3>
+      <div class="row">
+        <label>lat</label><input id="alat" value="12.9716" />
+        <label>lng</label><input id="alng" value="77.5946" />
+        <label>radius_m</label><input id="radius" value="5000" />
+        <button onclick="nearby()">GET /authority/alerts/nearby</button>
+      </div>
+    </div>
+
+    <h3>Output</h3>
+    <pre id="out"></pre>
+
+    <script>
+      const out = (v) => (document.getElementById("out").textContent = typeof v === "string" ? v : JSON.stringify(v, null, 2));
+      const base = () => document.getElementById("baseUrl").value.replace(/\/$/, "");
+      const token = () => document.getElementById("token").value.trim();
+
+      async function call(path, opts = {}) {
+        const headers = opts.headers || {};
+        if (token()) headers["Authorization"] = "Bearer " + token();
+        const res = await fetch(base() + path, { ...opts, headers });
+        const text = await res.text();
+        let data = text;
+        try { data = JSON.parse(text); } catch {}
+        if (!res.ok) throw { status: res.status, data };
+        return data;
+      }
+
+      async function health() { try { out(await call("/health")); } catch (e) { out(e); } }
+      async function me() { try { out(await call("/me")); } catch (e) { out(e); } }
+      async function listZones() { try { out(await call("/zones")); } catch (e) { out(e); } }
+
+      async function sendPing() {
+        try {
+          const payload = {
+            lat: parseFloat(document.getElementById("lat").value),
+            lng: parseFloat(document.getElementById("lng").value),
+            recorded_at: new Date().toISOString(),
+            accuracy_m: 10,
+            heading_deg: 0,
+            altitude_m: null,
+            speed_mps: null
+          };
+          out(await call("/location/ping", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }));
+        } catch (e) { out(e); }
+      }
+
+      async function sendSos() {
+        try {
+          const payload = { lat: parseFloat(document.getElementById("lat").value), lng: parseFloat(document.getElementById("lng").value) };
+          out(await call("/alerts/sos", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }));
+        } catch (e) { out(e); }
+      }
+
+      async function nearby() {
+        try {
+          const lat = encodeURIComponent(document.getElementById("alat").value);
+          const lng = encodeURIComponent(document.getElementById("alng").value);
+          const radius = encodeURIComponent(document.getElementById("radius").value);
+          out(await call(`/authority/alerts/nearby?lat=${lat}&lng=${lng}&radius_m=${radius}`));
+        } catch (e) { out(e); }
+      }
+    </script>
+  </body>
+</html>
+
