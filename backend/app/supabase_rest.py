@@ -218,3 +218,55 @@ class SupabaseRest:
         )
         return rows[0] if rows else None
 
+    async def list_my_documents(self, bearer_token: str, user_id: str) -> list[dict[str, Any]]:
+        return await self._get(
+            "user_documents",
+            bearer_token=bearer_token,
+            params={
+                "select": "*",
+                "user_id": f"eq.{user_id}",
+                "order": "created_at.desc",
+            },
+        )
+
+    async def get_my_document_by_id(self, bearer_token: str, user_id: str, document_id: str) -> dict[str, Any] | None:
+        rows = await self._get(
+            "user_documents",
+            bearer_token=bearer_token,
+            params={"select": "*", "id": f"eq.{document_id}", "user_id": f"eq.{user_id}", "limit": "1"},
+        )
+        return rows[0] if rows else None
+
+    async def get_document_by_id(self, bearer_token: str, document_id: str) -> dict[str, Any] | None:
+        rows = await self._get(
+            "user_documents",
+            bearer_token=bearer_token,
+            params={"select": "*", "id": f"eq.{document_id}", "limit": "1"},
+        )
+        return rows[0] if rows else None
+
+    async def upsert_digital_id_registry(
+        self,
+        bearer_token: str,
+        payload: dict[str, Any],
+    ) -> dict[str, Any]:
+        rows = await self._post(
+            "digital_id_registry",
+            bearer_token=bearer_token,
+            payload=payload,
+            prefer="resolution=merge-duplicates,return=representation",
+        )
+        return rows[0]
+
+    async def get_digital_id_registry(self, bearer_token: str, user_id: str) -> dict[str, Any] | None:
+        rows = await self._get(
+            "digital_id_registry",
+            bearer_token=bearer_token,
+            params={"select": "*", "user_id": f"eq.{user_id}", "limit": "1"},
+        )
+        return rows[0] if rows else None
+
+    async def insert_document_access_log(self, bearer_token: str, payload: dict[str, Any]) -> dict[str, Any]:
+        rows = await self._post("document_access_logs", bearer_token=bearer_token, payload=payload)
+        return rows[0]
+

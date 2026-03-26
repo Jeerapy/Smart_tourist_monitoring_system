@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../../lib/supabaseClient";
-import { backendFetch } from "../../../lib/backend";
+import { backendFetch, backendFetchBlob } from "../../../lib/backend";
 import { AuthorityMap } from "../../components/AuthorityMap";
 import {
   applyAlertFilters,
@@ -49,6 +49,7 @@ export default function AuthorityDashboard() {
   const [toastTone, setToastTone] = useState<"info" | "success" | "warning" | "danger">("info");
   const [toastTitle, setToastTitle] = useState(" ");
   const [toastMessage, setToastMessage] = useState<string | undefined>(undefined);
+  const [docBusy, setDocBusy] = useState(false);
 
   function showToast(tone: "info" | "success" | "warning" | "danger", title: string, message?: string) {
     setToastTone(tone);
@@ -220,6 +221,26 @@ export default function AuthorityDashboard() {
     setZLat(String(zone.circle_center_lat ?? ""));
     setZLng(String(zone.circle_center_lng ?? ""));
     setCircleRadiusM(String(zone.circle_radius_m ?? ""));
+  }
+
+  async function viewLatestDocumentForSelectedAlert() {
+    if (!selectedAlert?.user_id) return;
+    setDocBusy(true);
+    try {
+      const latest = await backendFetch<{ document: { id: string } }>(
+        `/authority/users/${encodeURIComponent(selectedAlert.user_id)}/documents/latest`
+      );
+      const docId = latest?.document?.id;
+      if (!docId) throw new Error("No latest document found for this user");
+      const blob = await backendFetchBlob(`/authority/documents/${encodeURIComponent(docId)}/view`);
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank", "noopener,noreferrer");
+      showToast("success", "Document opened");
+    } catch (e: any) {
+      showToast("danger", "Document view failed", e?.message ?? String(e));
+    } finally {
+      setDocBusy(false);
+    }
   }
 
   return (
@@ -400,7 +421,14 @@ export default function AuthorityDashboard() {
         <div className="grid gap-5">
           <GlassCard title="Selected alert details">
             {selectedAlert ? (
-              <Pre value={selectedAlert} />
+              <>
+                <Pre value={selectedAlert} />
+                <InlineRow className="mt-3">
+                  <Button variant="secondary" disabled={docBusy} onClick={() => viewLatestDocumentForSelectedAlert()}>
+                    {docBusy ? "Opening…" : "View User Document"}
+                  </Button>
+                </InlineRow>
+              </>
             ) : (
               <div className="text-sm text-white/60">Select an alert from the list or map.</div>
             )}

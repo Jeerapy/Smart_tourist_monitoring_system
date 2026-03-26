@@ -35,3 +35,17 @@ Open:
 - `http://localhost:3000/login` → login
 - `http://localhost:3000/user/dashboard` → upload document (OCR), ping, SOS, view alerts
 - `http://localhost:3000/authority/dashboard` → create zones, fetch nearby alerts, ack/resolve
+
+### 3) IPFS + Blockchain (optional integration)
+- Smart contract workspace is inside backend at `backend/blockchain/`.
+- For Amoy deploy:
+
+```bash
+cd backend/blockchain
+npm install
+npm run compile
+npm run deploy:amoy
+```
+
+- Backend uses Pinata + blockchain env vars from `backend/.env.example`.
+- Document view endpoints stream decrypted files after fetching encrypted payloads from IPFS.

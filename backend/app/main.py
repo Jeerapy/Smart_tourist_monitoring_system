@@ -1,14 +1,21 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+import hashlib
+import io
 from typing import Any
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 
 from .config import settings
 from .geo import haversine_m, point_in_zone
 from .models import LocationPingIn, SosIn, ZoneCreate, ZoneUpdate
+from .services.blockchain_service import BlockchainService
+from .services.digital_id_service import make_digital_id
+from .services.encryption_service import decrypt_document_payload, encrypt_document
+from .services.ipfs_service import IpfsService
 from .security import AuthContext, AuthUser, get_auth_context, get_current_user, require_role
 from .supabase_rest import SupabaseRest
 from .verification import (
@@ -31,6 +38,27 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+def _validate_runtime_config() -> None:
+    # Fail-fast only for inconsistent partial blockchain config.
+    chain_fields = [
+        settings.blockchain_rpc_url,
+        settings.blockchain_private_key,
+        settings.blockchain_account_address,
+        settings.blockchain_contract_address,
+        settings.blockchain_contract_abi_path,
+    ]
+    configured = [bool(x) for x in chain_fields]
+    if any(configured) and not all(configured):
+        raise RuntimeError(
+            "Partial blockchain config detected. Set all blockchain env vars or leave all empty to disable."
+        )
+
+
+@app.on_event("startup")
+async def on_startup() -> None:
+    _validate_runtime_config()
 
 
 def _now_utc() -> datetime:
@@ -295,6 +323,108 @@ async def me_verification(ctx: AuthContext = Depends(get_auth_context)) -> dict[
     }
 
 
+@app.get("/me/documents")
+async def me_documents(ctx: AuthContext = Depends(get_auth_context)) -> dict[str, Any]:
+    sb = SupabaseRest()
+    docs = await sb.list_my_documents(bearer_token=ctx.token, user_id=ctx.user.user_id)
+    did = await sb.get_digital_id_registry(bearer_token=ctx.token, user_id=ctx.user.user_id)
+    return {"count": len(docs), "documents": docs, "digital_id": did}
+
+
+@app.get("/me/documents/{doc_id}/view")
+async def me_document_view(doc_id: str, ctx: AuthContext = Depends(get_auth_context)) -> StreamingResponse:
+    sb = SupabaseRest()
+    doc = await sb.get_my_document_by_id(bearer_token=ctx.token, user_id=ctx.user.user_id, document_id=doc_id)
+    if not doc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+    cid = doc.get("ipfs_cid")
+    if not cid:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Document is not stored on IPFS")
+
+    ipfs = IpfsService()
+    payload_bytes = await ipfs.fetch_bytes(cid=cid)
+    raw, original_name, original_mime = decrypt_document_payload(payload_bytes=payload_bytes)
+    mime = original_mime or doc.get("mime_type") or "application/octet-stream"
+    file_name = original_name or doc.get("file_name") or "document"
+    await sb.insert_document_access_log(
+        bearer_token=ctx.token,
+        payload={
+            "document_id": doc.get("id"),
+            "user_id": doc.get("user_id"),
+            "viewer_id": ctx.user.user_id,
+            "viewer_role": ctx.user.role,
+            "reason": "self_view",
+        },
+    )
+    return StreamingResponse(
+        io.BytesIO(raw),
+        media_type=mime,
+        headers={"Content-Disposition": f'inline; filename="{file_name}"'},
+    )
+
+
+@app.get("/authority/users/{user_id}/documents/latest")
+async def authority_latest_user_document(
+    user_id: str,
+    ctx: AuthContext = Depends(get_auth_context),
+    _: AuthUser = Depends(require_role("authority")),
+) -> dict[str, Any]:
+    sb = SupabaseRest()
+    open_alerts = await sb.list_open_alerts(bearer_token=ctx.token)
+    if not any(a.get("user_id") == user_id for a in open_alerts):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Authority access requires an active alert context for this user",
+        )
+    doc = await sb.get_latest_user_document(bearer_token=ctx.token, user_id=user_id)
+    if not doc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No document found for user")
+    return {"document": doc}
+
+
+@app.get("/authority/documents/{doc_id}/view")
+async def authority_document_view(
+    doc_id: str,
+    ctx: AuthContext = Depends(get_auth_context),
+    _: AuthUser = Depends(require_role("authority")),
+) -> StreamingResponse:
+    sb = SupabaseRest()
+    doc = await sb.get_document_by_id(bearer_token=ctx.token, document_id=doc_id)
+    if not doc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+    user_id = doc.get("user_id")
+    open_alerts = await sb.list_open_alerts(bearer_token=ctx.token)
+    if not any(a.get("user_id") == user_id for a in open_alerts):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Authority access requires an active alert context for this user",
+        )
+
+    cid = doc.get("ipfs_cid")
+    if not cid:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Document is not stored on IPFS")
+    ipfs = IpfsService()
+    payload_bytes = await ipfs.fetch_bytes(cid=cid)
+    raw, original_name, original_mime = decrypt_document_payload(payload_bytes=payload_bytes)
+    mime = original_mime or doc.get("mime_type") or "application/octet-stream"
+    file_name = original_name or doc.get("file_name") or "document"
+    await sb.insert_document_access_log(
+        bearer_token=ctx.token,
+        payload={
+            "document_id": doc.get("id"),
+            "user_id": user_id,
+            "viewer_id": ctx.user.user_id,
+            "viewer_role": ctx.user.role,
+            "reason": "authority_active_alert_context",
+        },
+    )
+    return StreamingResponse(
+        io.BytesIO(raw),
+        media_type=mime,
+        headers={"Content-Disposition": f'inline; filename="{file_name}"'},
+    )
+
+
 @app.get("/public/verification/info")
 async def public_verification_info() -> dict[str, Any]:
     return {
@@ -338,7 +468,7 @@ async def upload_document_for_verification(
         extracted=extracted,
     )
 
-    doc_payload = {
+    doc_payload: dict[str, Any] = {
         "user_id": ctx.user.user_id,
         "doc_type": doc_type,
         "file_name": file.filename,
@@ -348,7 +478,43 @@ async def upload_document_for_verification(
         "extracted_dob": extracted.dob.isoformat() if extracted.dob else None,
         "extraction_confidence": extracted.confidence,
         "verification_result": "MATCH" if verified else "NO_MATCH",
+        "encrypted": False,
+        "onchain_status": "SKIPPED",
+        "onchain_chain": settings.blockchain_chain_name,
     }
+
+    ipfs_result = None
+    chain_result = None
+    digital_id = make_digital_id(ctx.user.user_id)
+    if verified and bool(profile.get("consent_blockchain_storage")):
+        try:
+            encrypted_payload = encrypt_document(raw=raw, file_name=file.filename, mime_type=mime)
+            doc_payload["encrypted"] = True
+            doc_payload["enc_alg"] = encrypted_payload.alg
+            doc_payload["enc_nonce"] = encrypted_payload.nonce_b64
+
+            ipfs = IpfsService()
+            ipfs_result = await ipfs.upload_bytes(
+                payload=encrypted_payload.payload_bytes,
+                file_name=f"{ctx.user.user_id}-{(file.filename or 'document')}.enc.json",
+            )
+            doc_payload["ipfs_cid"] = ipfs_result["cid"]
+            doc_payload["ipfs_uri"] = ipfs_result["uri"]
+            doc_payload["ipfs_provider"] = ipfs_result["provider"]
+            doc_payload["cid_hash"] = hashlib.sha256(ipfs_result["cid"].encode("utf-8")).hexdigest()
+
+            chain = BlockchainService()
+            chain_result = chain.write_document_proof(user_id=ctx.user.user_id, cid=ipfs_result["cid"], verified=verified)
+            if chain_result.get("enabled"):
+                doc_payload["onchain_tx_hash"] = chain_result.get("tx_hash")
+                doc_payload["onchain_status"] = chain_result.get("status", "PENDING")
+                doc_payload["onchain_contract_address"] = chain_result.get("contract_address")
+            else:
+                doc_payload["onchain_status"] = "SKIPPED"
+        except Exception as e:
+            doc_payload["onchain_status"] = "FAILED"
+            doc_payload["ocr_text"] = (doc_payload.get("ocr_text") or "") + f"\n\n[proof_pipeline_error] {e}"
+
     doc_row = await sb.insert_user_document(bearer_token=ctx.token, payload=doc_payload)
 
     profile_update = None
@@ -359,12 +525,28 @@ async def upload_document_for_verification(
             payload={"is_verified": True, "verified_at": _now_utc().isoformat()},
         )
 
+    did_row = await sb.upsert_digital_id_registry(
+        bearer_token=ctx.token,
+        payload={
+            "user_id": ctx.user.user_id,
+            "digital_id": digital_id,
+            "latest_document_id": doc_row.get("id"),
+            "latest_ipfs_cid": doc_row.get("ipfs_cid"),
+            "latest_tx_hash": doc_row.get("onchain_tx_hash"),
+            "verified": bool(verified),
+            "updated_at": _now_utc().isoformat(),
+        },
+    )
+
     return {
         "uploaded": True,
         "verified": verified,
         "verification_details": details,
         "document": doc_row,
         "profile_updated": profile_update,
+        "digital_id": did_row,
+        "ipfs": ipfs_result,
+        "chain": chain_result,
     }
 
 

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../../../lib/supabaseClient";
-import { backendFetch, backendUploadForm } from "../../../lib/backend";
+import { backendFetch, backendFetchBlob, backendUploadForm } from "../../../lib/backend";
 import { MapView } from "../../components/MapView";
 import { Badge, Button, Container, Divider, Field, GlassCard, InlineRow, Modal, Pre, Toast } from "../../components/Ui";
 import { convertDDMMYYYYToISO, formatISOToDDMMYYYY } from "../../../lib/dob";
@@ -48,6 +48,8 @@ export default function UserDashboard() {
   const [file, setFile] = useState<File | null>(null);
   const [uploadBusy, setUploadBusy] = useState(false);
   const [uploadRes, setUploadRes] = useState<any>(null);
+  const [documents, setDocuments] = useState<any[]>([]);
+  const [digitalId, setDigitalId] = useState<any>(null);
 
   const [toastOpen, setToastOpen] = useState(false);
   const [toastTone, setToastTone] = useState<"info" | "success" | "warning" | "danger">("info");
@@ -98,6 +100,10 @@ export default function UserDashboard() {
 
       const myAlerts = await backendFetch("/me/alerts");
       setAlerts(myAlerts);
+
+      const docsRes = await backendFetch<{ documents: any[]; digital_id: any }>("/me/documents");
+      setDocuments(docsRes.documents || []);
+      setDigitalId(docsRes.digital_id || null);
     } finally {
       setBusy(false);
     }
@@ -267,6 +273,16 @@ export default function UserDashboard() {
       showToast("danger", "Upload failed", e?.message ?? String(e));
     } finally {
       setUploadBusy(false);
+    }
+  }
+
+  async function viewMyDocument(docId: string) {
+    try {
+      const blob = await backendFetchBlob(`/me/documents/${encodeURIComponent(docId)}/view`);
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch (e: any) {
+      showToast("danger", "Document view failed", e?.message ?? String(e));
     }
   }
 
@@ -526,6 +542,33 @@ export default function UserDashboard() {
                 </Button>
               </InlineRow>
               {uploadRes ? <Pre value={uploadRes} /> : null}
+
+              <Divider className="my-2" />
+              <div className="text-sm font-semibold text-white/85">Digital ID</div>
+              <div className="text-xs text-white/70">
+                {digitalId?.digital_id || "Not generated yet (created after successful verified proof pipeline)."}
+              </div>
+
+              <div className="text-sm font-semibold text-white/85">My Documents</div>
+              <div className="grid gap-2">
+                {documents.length === 0 ? (
+                  <div className="text-xs text-white/60">No uploaded documents found yet.</div>
+                ) : (
+                  documents.map((d) => (
+                    <div key={d.id} className="rounded-xl border border-white/10 bg-white/5 p-3">
+                      <div className="mb-1 text-xs text-white/65">{d.file_name || d.doc_type || "Document"}</div>
+                      <div className="text-xs text-white/55">
+                        {d.ipfs_cid ? `CID: ${d.ipfs_cid}` : "No CID yet"} • {d.onchain_tx_hash ? `TX: ${d.onchain_tx_hash}` : "No TX yet"}
+                      </div>
+                      <InlineRow className="mt-2">
+                        <Button variant="secondary" onClick={() => viewMyDocument(d.id)}>
+                          View
+                        </Button>
+                      </InlineRow>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
           </GlassCard>
         </div>

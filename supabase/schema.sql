@@ -131,10 +131,59 @@ create table if not exists public.user_documents (
   created_at timestamptz not null default now()
 );
 
+alter table public.user_documents
+  add column if not exists ipfs_cid text,
+  add column if not exists ipfs_uri text,
+  add column if not exists ipfs_provider text,
+  add column if not exists encrypted boolean not null default false,
+  add column if not exists enc_alg text,
+  add column if not exists enc_nonce text,
+  add column if not exists onchain_tx_hash text,
+  add column if not exists onchain_chain text,
+  add column if not exists onchain_contract_address text,
+  add column if not exists onchain_status text,
+  add column if not exists cid_hash text;
+
 create index if not exists user_documents_user_created_idx
   on public.user_documents(user_id, created_at desc);
 
 alter table public.user_documents enable row level security;
+
+-- =========================
+-- Digital ID registry
+-- =========================
+create table if not exists public.digital_id_registry (
+  user_id uuid primary key references public.profiles(id) on delete cascade,
+  digital_id text unique not null,
+  latest_document_id uuid references public.user_documents(id) on delete set null,
+  latest_ipfs_cid text,
+  latest_tx_hash text,
+  verified boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists digital_id_registry_digital_id_idx on public.digital_id_registry(digital_id);
+
+alter table public.digital_id_registry enable row level security;
+
+-- =========================
+-- Document access logs
+-- =========================
+create table if not exists public.document_access_logs (
+  id uuid primary key default gen_random_uuid(),
+  document_id uuid not null references public.user_documents(id) on delete cascade,
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  viewer_id uuid not null references public.profiles(id) on delete cascade,
+  viewer_role text not null,
+  reason text,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists document_access_logs_user_created_idx
+  on public.document_access_logs(user_id, created_at desc);
+
+alter table public.document_access_logs enable row level security;
 
 -- =========================
 -- Alerts
@@ -272,11 +321,67 @@ on public.user_documents for select
 to authenticated
 using (user_id = auth.uid());
 
+drop policy if exists "docs_select_authority" on public.user_documents;
+create policy "docs_select_authority"
+on public.user_documents for select
+to authenticated
+using (public.is_authority(auth.uid()));
+
 drop policy if exists "docs_insert_own" on public.user_documents;
 create policy "docs_insert_own"
 on public.user_documents for insert
 to authenticated
 with check (user_id = auth.uid());
+
+drop policy if exists "docs_update_own_or_authority" on public.user_documents;
+create policy "docs_update_own_or_authority"
+on public.user_documents for update
+to authenticated
+using (user_id = auth.uid() or public.is_authority(auth.uid()))
+with check (user_id = auth.uid() or public.is_authority(auth.uid()));
+
+-- digital_id_registry
+drop policy if exists "did_select_own_or_authority" on public.digital_id_registry;
+create policy "did_select_own_or_authority"
+on public.digital_id_registry for select
+to authenticated
+using (user_id = auth.uid() or public.is_authority(auth.uid()));
+
+drop policy if exists "did_insert_own_or_authority" on public.digital_id_registry;
+create policy "did_insert_own_or_authority"
+on public.digital_id_registry for insert
+to authenticated
+with check (user_id = auth.uid() or public.is_authority(auth.uid()));
+
+drop policy if exists "did_update_own_or_authority" on public.digital_id_registry;
+create policy "did_update_own_or_authority"
+on public.digital_id_registry for update
+to authenticated
+using (user_id = auth.uid() or public.is_authority(auth.uid()))
+with check (user_id = auth.uid() or public.is_authority(auth.uid()));
+
+-- document_access_logs
+drop policy if exists "doc_logs_insert_viewer" on public.document_access_logs;
+create policy "doc_logs_insert_viewer"
+on public.document_access_logs for insert
+to authenticated
+with check (
+  viewer_id = auth.uid()
+  and (
+    viewer_id = user_id
+    or public.is_authority(auth.uid())
+  )
+);
+
+drop policy if exists "doc_logs_select_own_or_authority" on public.document_access_logs;
+create policy "doc_logs_select_own_or_authority"
+on public.document_access_logs for select
+to authenticated
+using (
+  viewer_id = auth.uid()
+  or user_id = auth.uid()
+  or public.is_authority(auth.uid())
+);
 
 -- alerts
 drop policy if exists "alerts_select_own" on public.alerts;

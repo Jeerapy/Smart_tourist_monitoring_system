@@ -57,3 +57,20 @@ export async function backendUploadForm<T>(path: string, form: FormData, init?: 
   return data as T;
 }
 
+export async function backendFetchBlob(path: string, init?: RequestInit): Promise<Blob> {
+  const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
+  const token = await getAccessToken();
+  const res = await fetch(`${baseUrl}${path}`, {
+    ...init,
+    headers: {
+      ...(init?.headers || {}),
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Backend ${res.status}: ${text}`);
+  }
+  return await res.blob();
+}
+

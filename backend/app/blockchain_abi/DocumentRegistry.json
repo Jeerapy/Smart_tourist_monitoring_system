@@ -1,0 +1,28 @@
+{
+  "abi": [
+    {
+      "anonymous": false,
+      "inputs": [
+        { "indexed": true, "internalType": "bytes32", "name": "userHash", "type": "bytes32" },
+        { "indexed": true, "internalType": "bytes32", "name": "cidHash", "type": "bytes32" },
+        { "indexed": false, "internalType": "bool", "name": "verified", "type": "bool" },
+        { "indexed": false, "internalType": "uint256", "name": "timestamp", "type": "uint256" },
+        { "indexed": true, "internalType": "address", "name": "submitter", "type": "address" }
+      ],
+      "name": "DocumentProofStored",
+      "type": "event"
+    },
+    {
+      "inputs": [
+        { "internalType": "bytes32", "name": "userHash", "type": "bytes32" },
+        { "internalType": "bytes32", "name": "cidHash", "type": "bytes32" },
+        { "internalType": "bool", "name": "verified", "type": "bool" }
+      ],
+      "name": "storeProof",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    }
+  ]
+}
+

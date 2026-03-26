@@ -9,4 +9,6 @@ pytesseract
 PyPDF2
 rapidfuzz
 python-multipart
+cryptography
+web3
 
