@@ -6,6 +6,7 @@ import { supabase } from "../../../lib/supabaseClient";
 import { backendFetch, backendUploadForm } from "../../../lib/backend";
 import { MapView } from "../../components/MapView";
 import { Badge, Button, Container, Divider, Field, GlassCard, InlineRow, Modal, Pre, Toast } from "../../components/Ui";
+import { convertDDMMYYYYToISO, formatISOToDDMMYYYY } from "../../../lib/dob";
 
 export default function UserDashboard() {
   const [profile, setProfile] = useState<any>(null);
@@ -26,7 +27,21 @@ export default function UserDashboard() {
   const [sosBusy, setSosBusy] = useState(false);
   const [sosRes, setSosRes] = useState<any>(null);
 
-  const [profileEdit, setProfileEdit] = useState({ full_name: "", dob: "", place: "" });
+  const [profileEdit, setProfileEdit] = useState({
+    full_name: "",
+    dob: "",
+    place: "",
+    citizenship: "INDIAN" as "INDIAN" | "FOREIGN",
+    aadhaar_number: "",
+    passport_number: "",
+    phone_number: "",
+    alternative_phone_number: "",
+    emergency_contact_name: "",
+    emergency_contact_phone: "",
+    emergency_contact_relation: "",
+    consent_location_tracking: false,
+    consent_blockchain_storage: false,
+  });
   const [savingProfile, setSavingProfile] = useState(false);
 
   const [docType, setDocType] = useState("OTHER");
@@ -64,8 +79,18 @@ export default function UserDashboard() {
       setProfile(prof);
       setProfileEdit({
         full_name: prof?.full_name || "",
-        dob: prof?.dob || "",
+        dob: formatISOToDDMMYYYY(prof?.dob),
         place: prof?.place || "",
+        citizenship: (prof?.citizenship || "INDIAN") as "INDIAN" | "FOREIGN",
+        aadhaar_number: prof?.aadhaar_number || "",
+        passport_number: prof?.passport_number || "",
+        phone_number: prof?.phone_number || "",
+        alternative_phone_number: prof?.alternative_phone_number || "",
+        emergency_contact_name: prof?.emergency_contact_name || "",
+        emergency_contact_phone: prof?.emergency_contact_phone || "",
+        emergency_contact_relation: prof?.emergency_contact_relation || "",
+        consent_location_tracking: Boolean(prof?.consent_location_tracking),
+        consent_blockchain_storage: Boolean(prof?.consent_blockchain_storage),
       });
 
       const ver = await backendFetch("/me/verification");
@@ -197,8 +222,18 @@ export default function UserDashboard() {
         .from("profiles")
         .update({
           full_name: profileEdit.full_name || null,
-          dob: profileEdit.dob || null,
+          dob: convertDDMMYYYYToISO(profileEdit.dob) || null,
           place: profileEdit.place || null,
+          citizenship: profileEdit.citizenship,
+          aadhaar_number: profileEdit.citizenship === "INDIAN" ? profileEdit.aadhaar_number || null : null,
+          passport_number: profileEdit.citizenship === "FOREIGN" ? profileEdit.passport_number || null : null,
+          phone_number: profileEdit.phone_number || null,
+          alternative_phone_number: profileEdit.alternative_phone_number || null,
+          emergency_contact_name: profileEdit.emergency_contact_name || null,
+          emergency_contact_phone: profileEdit.emergency_contact_phone || null,
+          emergency_contact_relation: profileEdit.emergency_contact_relation || null,
+          consent_location_tracking: profileEdit.consent_location_tracking,
+          consent_blockchain_storage: profileEdit.consent_blockchain_storage,
         })
         .eq("id", uid);
       if (error) throw error;
@@ -320,30 +355,139 @@ export default function UserDashboard() {
 
           <GlassCard title="Profile">
             <div className="grid gap-4">
-              <Field label="Full name" hint="Should match your uploaded document for verification.">
-                <input
-                  value={profileEdit.full_name}
-                  onChange={(e) => setProfileEdit((p) => ({ ...p, full_name: e.target.value }))}
-                  placeholder="Full name"
-                />
-              </Field>
               <div className="grid gap-4 md:grid-cols-2">
-                <Field label="DOB (YYYY-MM-DD)">
+                <Field label="Full name" hint="Should match your uploaded document for verification.">
+                  <input
+                    value={profileEdit.full_name}
+                    onChange={(e) => setProfileEdit((p) => ({ ...p, full_name: e.target.value }))}
+                    placeholder="Full name"
+                  />
+                </Field>
+                <Field label="DOB (DD-MM-YYYY)">
                   <input
                     value={profileEdit.dob}
                     onChange={(e) => setProfileEdit((p) => ({ ...p, dob: e.target.value }))}
-                    placeholder="2003-01-31"
-                  />
-                </Field>
-                <Field label="Place">
-                  <input
-                    value={profileEdit.place}
-                    onChange={(e) => setProfileEdit((p) => ({ ...p, place: e.target.value }))}
-                    placeholder="City / State"
+                    placeholder="31-12-2003"
                   />
                 </Field>
               </div>
-              <InlineRow>
+
+              <Field label="Place (optional)">
+                <input
+                  value={profileEdit.place}
+                  onChange={(e) => setProfileEdit((p) => ({ ...p, place: e.target.value }))}
+                  placeholder="City / State"
+                />
+              </Field>
+
+              <Divider className="my-2" />
+
+              <div className="text-sm font-semibold text-white/80">Citizen & ID</div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <Field label="Citizenship">
+                  <select
+                    value={profileEdit.citizenship}
+                    onChange={(e) => setProfileEdit((p) => ({ ...p, citizenship: e.target.value as any }))}
+                  >
+                    <option value="INDIAN">Indian Citizen</option>
+                    <option value="FOREIGN">Foreign Citizen</option>
+                  </select>
+                </Field>
+
+                {profileEdit.citizenship === "INDIAN" ? (
+                  <Field label="Aadhaar Card Number">
+                    <input
+                      value={profileEdit.aadhaar_number}
+                      onChange={(e) => setProfileEdit((p) => ({ ...p, aadhaar_number: e.target.value }))}
+                      placeholder="1234 5678 9012"
+                    />
+                  </Field>
+                ) : (
+                  <Field label="Passport Number">
+                    <input
+                      value={profileEdit.passport_number}
+                      onChange={(e) => setProfileEdit((p) => ({ ...p, passport_number: e.target.value }))}
+                      placeholder="Passport ID"
+                    />
+                  </Field>
+                )}
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <Field label="Phone Number">
+                  <input
+                    value={profileEdit.phone_number}
+                    onChange={(e) => setProfileEdit((p) => ({ ...p, phone_number: e.target.value }))}
+                    placeholder="+91 98765 43210"
+                  />
+                </Field>
+                <Field label="Alternative Phone Number">
+                  <input
+                    value={profileEdit.alternative_phone_number}
+                    onChange={(e) => setProfileEdit((p) => ({ ...p, alternative_phone_number: e.target.value }))}
+                    placeholder="+91 98765 43211"
+                  />
+                </Field>
+              </div>
+
+              <Divider className="my-2" />
+
+              <div className="text-sm font-semibold text-white/80">Emergency Contact</div>
+              <div className="grid gap-4 md:grid-cols-3">
+                <Field label="Name">
+                  <input
+                    value={profileEdit.emergency_contact_name}
+                    onChange={(e) => setProfileEdit((p) => ({ ...p, emergency_contact_name: e.target.value }))}
+                    placeholder="Jane Doe"
+                  />
+                </Field>
+                <Field label="Phone">
+                  <input
+                    value={profileEdit.emergency_contact_phone}
+                    onChange={(e) => setProfileEdit((p) => ({ ...p, emergency_contact_phone: e.target.value }))}
+                    placeholder="+91 98765 43210"
+                  />
+                </Field>
+                <Field label="Relation">
+                  <input
+                    value={profileEdit.emergency_contact_relation}
+                    onChange={(e) => setProfileEdit((p) => ({ ...p, emergency_contact_relation: e.target.value }))}
+                    placeholder="Spouse / Parent / Friend"
+                  />
+                </Field>
+              </div>
+
+              <Divider className="my-2" />
+
+              <div className="grid gap-2 rounded-xl border border-white/10 bg-white/5 p-4">
+                <div className="text-sm font-semibold text-white/90">Consent & Permissions</div>
+
+                <label className="flex items-start gap-3">
+                  <input
+                    type="checkbox"
+                    checked={profileEdit.consent_location_tracking}
+                    onChange={(e) => setProfileEdit((p) => ({ ...p, consent_location_tracking: e.target.checked }))}
+                    style={{ marginTop: 3 }}
+                  />
+                  <div className="text-sm text-white/70">
+                    Location tracking for safety and emergency response purposes.
+                  </div>
+                </label>
+
+                <label className="flex items-start gap-3">
+                  <input
+                    type="checkbox"
+                    checked={profileEdit.consent_blockchain_storage}
+                    onChange={(e) => setProfileEdit((p) => ({ ...p, consent_blockchain_storage: e.target.checked }))}
+                    style={{ marginTop: 3 }}
+                  />
+                  <div className="text-sm text-white/70">
+                    Storing verification credentials on blockchain/IPFS for secure verification and data protection.
+                  </div>
+                </label>
+              </div>
+
+              <InlineRow className="pt-1">
                 <Button disabled={savingProfile} onClick={saveProfile}>
                   {savingProfile ? "Saving…" : "Save profile"}
                 </Button>

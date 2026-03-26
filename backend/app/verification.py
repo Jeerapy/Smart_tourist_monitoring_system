@@ -132,6 +132,33 @@ def extract_fields(ocr_text: str) -> ExtractedFields:
     return ExtractedFields(name=name, dob=dob, confidence=None)
 
 
+def _parse_profile_dob(profile_dob: str) -> Optional[date]:
+    """
+    Parse profile DOB from DB/storage.
+    Supports both "YYYY-MM-DD" and "DD-MM-YYYY" (also "/" as separator).
+    """
+    t = (profile_dob or "").strip()
+    if not t:
+        return None
+    t = t.replace("/", "-")
+    parts = t.split("-")
+    if len(parts) != 3:
+        return None
+    a, b, c = parts
+    try:
+        if len(a) == 4:
+            # YYYY-MM-DD
+            yyyy, mm, dd = int(a), int(b), int(c)
+        elif len(c) == 4:
+            # DD-MM-YYYY
+            dd, mm, yyyy = int(a), int(b), int(c)
+        else:
+            return None
+        return date(yyyy, mm, dd)
+    except Exception:
+        return None
+
+
 def verify_profile(
     profile_full_name: Optional[str],
     profile_dob: Optional[str],
@@ -141,11 +168,11 @@ def verify_profile(
     # DOB exact if extracted
     dob_match = None
     if extracted.dob and profile_dob:
-        try:
-            y, m, d = [int(x) for x in profile_dob.split("-")]
-            dob_match = extracted.dob == date(y, m, d)
-        except Exception:
+        parsed = _parse_profile_dob(profile_dob)
+        if parsed is None:
             dob_match = False
+        else:
+            dob_match = extracted.dob == parsed
 
     name_score = None
     name_match = None

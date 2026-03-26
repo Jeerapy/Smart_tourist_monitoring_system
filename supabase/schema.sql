@@ -18,6 +18,18 @@ create table if not exists public.profiles (
   full_name text,
   dob date,
   place text,
+  -- Tourist digital ID (registration fields)
+  citizenship text, -- expected values: 'INDIAN' | 'FOREIGN'
+  aadhaar_number text,
+  passport_number text,
+  phone_number text,
+  alternative_phone_number text,
+  emergency_contact_name text,
+  emergency_contact_phone text,
+  emergency_contact_relation text,
+  consent_location_tracking boolean not null default false,
+  consent_blockchain_storage boolean not null default false,
+  consent_at timestamptz,
   is_verified boolean not null default false,
   verified_at timestamptz,
   created_at timestamptz not null default now()

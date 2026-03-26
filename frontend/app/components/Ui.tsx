@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { clsx } from "clsx";
 import { AnimatePresence, motion } from "framer-motion";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { supabase } from "../../lib/supabaseClient";
+import { backendFetch } from "../../lib/backend";
 
 export function Container({
   children,
@@ -16,6 +18,42 @@ export function Container({
 }
 
 export function TopNav() {
+  const [role, setRole] = useState<"user" | "authority" | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function load() {
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const hasSession = Boolean(sessionData.session);
+        if (!mounted) return;
+        if (!hasSession) {
+          setRole(null);
+          return;
+        }
+        const me = await backendFetch<{ role: "user" | "authority" }>("/me");
+        if (!mounted) return;
+        setRole(me.role || null);
+      } catch {
+        if (!mounted) return;
+        setRole(null);
+      }
+    }
+
+    load().catch(() => {});
+
+    const { data: sub } = supabase.auth.onAuthStateChange(() => {
+      load().catch(() => {});
+    });
+    return () => {
+      mounted = false;
+      sub.subscription.unsubscribe();
+    };
+  }, []);
+
+  const dashboardHref = role === "authority" ? "/authority/dashboard" : "/user/dashboard";
+
   return (
     <div className="sticky top-0 z-50 border-b border-white/10 bg-[linear-gradient(180deg,rgba(11,22,48,0.72),rgba(6,11,22,0.82))] backdrop-blur">
       <div className="mx-auto flex w-full max-w-6xl items-center gap-3 px-5 py-3">
@@ -28,14 +66,11 @@ export function TopNav() {
         </Link>
 
         <div className="ml-auto hidden items-center gap-3 text-sm text-white/80 md:flex">
-          <Link className="hover:text-white" href="/login">
-            Login
-          </Link>
           <Link className="hover:text-white" href="/register">
             Register
           </Link>
-          <Link className="hover:text-white" href="/user/dashboard">
-            Dashboard
+          <Link className="hover:text-white" href={role ? dashboardHref : "/login"}>
+            {role ? "Open Dashboard" : "Login"}
           </Link>
         </div>
       </div>

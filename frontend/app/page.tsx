@@ -1,7 +1,48 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Badge, Button, Container, Divider, GlassCard, InlineRow } from "./components/Ui";
+import { supabase } from "../lib/supabaseClient";
+import { backendFetch } from "../lib/backend";
 
 export default function Home() {
+  const [role, setRole] = useState<"user" | "authority" | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function load() {
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const hasSession = Boolean(sessionData.session);
+        if (!mounted) return;
+        if (!hasSession) {
+          setRole(null);
+          return;
+        }
+        const me = await backendFetch<{ role: "user" | "authority" }>("/me");
+        if (!mounted) return;
+        setRole(me.role || null);
+      } catch {
+        if (!mounted) return;
+        setRole(null);
+      }
+    }
+
+    load().catch(() => {});
+
+    const { data: sub } = supabase.auth.onAuthStateChange(() => {
+      load().catch(() => {});
+    });
+    return () => {
+      mounted = false;
+      sub.subscription.unsubscribe();
+    };
+  }, []);
+
+  const dashboardHref = role === "authority" ? "/authority/dashboard" : "/user/dashboard";
+
   return (
     <main>
       <Container className="pt-12">
@@ -30,11 +71,8 @@ export default function Home() {
               <Link href="/register">
                 <Button>Register (User)</Button>
               </Link>
-              <Link href="/login">
-                <Button variant="secondary">Login</Button>
-              </Link>
-              <Link href="/user/dashboard">
-                <Button variant="ghost">Open Dashboard</Button>
+              <Link href={role ? dashboardHref : "/login"}>
+                <Button variant={role ? "ghost" : "secondary"}>{role ? "Open Dashboard" : "Login"}</Button>
               </Link>
             </InlineRow>
 
@@ -97,8 +135,8 @@ export default function Home() {
               <Link href="/authority/register">
                 <Button variant="secondary">Register as Authority</Button>
               </Link>
-              <Link href="/login">
-                <Button variant="ghost">Login (same page)</Button>
+              <Link href={role ? dashboardHref : "/login"}>
+                <Button variant="ghost">{role ? "Open Dashboard" : "Login (same page)"}</Button>
               </Link>
             </InlineRow>
           </GlassCard>

@@ -5,6 +5,9 @@
 2. Create and activate a venv.
 3. Install deps:
 
+##Installation 
+- Install Tesseract Ocr and set the environmental variables 
+- Install the Requirements
 ```bash
 pip install -r requirements.txt
 ```
@@ -12,10 +15,8 @@ pip install -r requirements.txt
 ## Run
 
 ```bash
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+uvicorn app.main:app --reload  --port 8000
 ```
 
-## Notes
-- Auth: frontend uses Supabase Auth; pass `Authorization: Bearer <access_token>` to backend.
-- Role comes from `public.profiles.role` (`user` or `authority`).
+
 

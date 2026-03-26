@@ -57,12 +57,6 @@ export default function LoginPage() {
     }
   }
 
-  async function onLogout() {
-    await supabase.auth.signOut();
-    setResult({ ok: true, message: "Signed out" });
-    showToast("info", "Signed out");
-  }
-
   return (
     <Container className="pt-12">
       <div className="mx-auto grid w-full max-w-xl gap-5">
@@ -98,11 +92,6 @@ export default function LoginPage() {
               <Button variant="ghost" onClick={() => setShowHelp(true)}>
                 Help
               </Button>
-              <div className="ml-auto">
-                <Button variant="secondary" onClick={onLogout}>
-                  Logout
-                </Button>
-              </div>
             </InlineRow>
 
             <div className="text-xs text-white/60">

@@ -4,16 +4,31 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabaseClient";
-import { Badge, Button, Container, GlassCard, InlineRow, Pre, Toast } from "../components/Ui";
+import { convertDDMMYYYYToISO } from "../../lib/dob";
+import { Badge, Button, Container, Divider, Field, GlassCard, InlineRow, Toast } from "../components/Ui";
 
 export default function RegisterPage() {
   const router = useRouter();
+  const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [fullName, setFullName] = useState("");
-  const [dob, setDob] = useState(""); // YYYY-MM-DD
-  const [place, setPlace] = useState("");
-  const [result, setResult] = useState<any>(null);
+  const [dob, setDob] = useState(""); // DD-MM-YYYY (required for backend verification)
+  const [place, setPlace] = useState(""); // optional (kept for compatibility with existing schema)
+
+  const [citizenship, setCitizenship] = useState<"INDIAN" | "FOREIGN">("INDIAN");
+  const [aadhaarNumber, setAadhaarNumber] = useState("");
+  const [passportNumber, setPassportNumber] = useState("");
+
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [alternativePhoneNumber, setAlternativePhoneNumber] = useState("");
+
+  const [emergencyContactName, setEmergencyContactName] = useState("");
+  const [emergencyContactPhone, setEmergencyContactPhone] = useState("");
+  const [emergencyContactRelation, setEmergencyContactRelation] = useState("");
+
+  const [consentLocationTracking, setConsentLocationTracking] = useState(false);
+  const [consentBlockchainStorage, setConsentBlockchainStorage] = useState(false);
+
   const [busy, setBusy] = useState(false);
   const [toastOpen, setToastOpen] = useState(false);
   const [toastTone, setToastTone] = useState<"info" | "success" | "warning" | "danger">("info");
@@ -29,8 +44,16 @@ export default function RegisterPage() {
 
   async function onRegister() {
     setBusy(true);
-    setResult(null);
     try {
+      if (!consentLocationTracking || !consentBlockchainStorage) {
+        showToast(
+          "warning",
+          "Consent required",
+          "Please accept both permissions to complete registration."
+        );
+        return;
+      }
+
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -49,32 +72,45 @@ export default function RegisterPage() {
           password,
         });
         if (signInErr) {
-          setResult({
-            ok: true,
-            userId,
-            message:
-              "Account created, but no session yet (email confirmation may be required). Confirm email, then login and the app can create your profile.",
-          });
+          showToast(
+            "warning",
+            "Confirm email",
+            "Account created but no session yet. If email confirmation is enabled, confirm your email, then login."
+          );
           return;
         }
         sessionData = { session: signInData.session };
+      }
+
+      const dobIso = convertDDMMYYYYToISO(dob);
+      if (!dobIso) {
+        showToast("warning", "Invalid DOB", "Please enter DOB as DD-MM-YYYY.");
+        return;
       }
 
       const { error: insertErr } = await supabase.from("profiles").insert({
         id: userId,
         role: "user",
         full_name: fullName,
-        dob: dob || null,
+        dob: dobIso,
         place: place || null,
+        citizenship,
+        aadhaar_number: citizenship === "INDIAN" ? aadhaarNumber : null,
+        passport_number: citizenship === "FOREIGN" ? passportNumber : null,
+        phone_number: phoneNumber || null,
+        alternative_phone_number: alternativePhoneNumber || null,
+        emergency_contact_name: emergencyContactName || null,
+        emergency_contact_phone: emergencyContactPhone || null,
+        emergency_contact_relation: emergencyContactRelation || null,
+        consent_location_tracking: consentLocationTracking,
+        consent_blockchain_storage: consentBlockchainStorage,
       });
       if (insertErr) throw insertErr;
 
-      setResult({ ok: true, userId, message: "Registered. You can login now." });
       showToast("success", "Registered", "Account created. Please login.");
       router.push("/login");
     } catch (e: any) {
       const msg = e?.message ?? String(e);
-      setResult({ ok: false, error: msg, raw: e });
       showToast("danger", "Registration failed", msg);
     } finally {
       setBusy(false);
@@ -83,71 +119,200 @@ export default function RegisterPage() {
 
   return (
     <Container className="pt-12">
-      <div className="mx-auto grid w-full max-w-xl gap-5">
+      <div className="mx-auto w-full max-w-xl">
         <div className="text-center">
+          <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl border border-emerald-300/20 bg-emerald-400/10 shadow-[0_0_0_1px_rgba(255,255,255,0.04)]">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path
+                d="M12 2 20 6v6c0 5-3.4 9.3-8 10-4.6-.7-8-5-8-10V6l8-4Z"
+                stroke="rgba(34,197,94,0.95)"
+                strokeWidth="1.8"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M8.5 12.2 10.7 14.4 15.6 9.5"
+                stroke="rgba(34,197,94,0.95)"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </div>
+
           <div className="mb-3 flex items-center justify-center gap-2">
             <Badge tone="info">Tourist</Badge>
             <Badge tone="neutral">Role: user</Badge>
           </div>
-          <h1 className="text-3xl font-semibold tracking-tight text-white/95">Register</h1>
-          <p className="mt-2 text-sm text-white/65">Create your account and profile for verification.</p>
+          <h1 className="text-3xl font-semibold tracking-tight text-white/95">Create Tourist Digital ID</h1>
+          <p className="mt-2 text-sm text-white/65">
+            Complete registration for geofence safety, SOS escalation, and document verification.
+          </p>
         </div>
 
-        <GlassCard title="Create account (User)">
-          <div className="grid gap-4">
-            <label className="grid gap-2">
-              <span className="text-sm font-medium text-white/85">Email</span>
-              <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
-            </label>
-            <label className="grid gap-2">
-              <span className="text-sm font-medium text-white/85">Password</span>
+        <GlassCard className="mt-7" title={undefined}>
+          <div className="grid gap-6">
+            <div className="grid gap-4 md:grid-cols-2">
+              <Field label={`Full Name*`}>
+                <input
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  placeholder="John Doe"
+                />
+              </Field>
+              <Field label={`Email ID*`}>
+                <input
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  type="email"
+                  placeholder="tourist@example.com"
+                />
+              </Field>
+            </div>
+
+            <Divider />
+
+            <div className="text-sm font-semibold text-white/90">Citizen Information</div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <Field label="Citizenship*">
+                <select value={citizenship} onChange={(e) => setCitizenship(e.target.value as any)}>
+                  <option value="INDIAN">Indian Citizen</option>
+                  <option value="FOREIGN">Foreign Citizen</option>
+                </select>
+              </Field>
+
+              {citizenship === "INDIAN" ? (
+                <Field label="Aadhaar Card Number*">
+                  <input
+                    value={aadhaarNumber}
+                    onChange={(e) => setAadhaarNumber(e.target.value)}
+                    placeholder="1234 5678 9012"
+                  />
+                </Field>
+              ) : (
+                <Field label="Passport Number*">
+                  <input
+                    value={passportNumber}
+                    onChange={(e) => setPassportNumber(e.target.value)}
+                    placeholder="Passport ID"
+                  />
+                </Field>
+              )}
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <Field label="Phone Number*">
+                <input
+                  value={phoneNumber}
+                  onChange={(e) => setPhoneNumber(e.target.value)}
+                  placeholder="+91 98765 43210"
+                />
+              </Field>
+              <Field label="Alternative Phone Number">
+                <input
+                  value={alternativePhoneNumber}
+                  onChange={(e) => setAlternativePhoneNumber(e.target.value)}
+                  placeholder="+91 98765 43211"
+                />
+              </Field>
+            </div>
+
+            <Divider />
+
+            <div className="text-sm font-semibold text-white/90">Emergency Contact Details</div>
+
+            <div className="grid gap-4 md:grid-cols-3">
+              <Field label="Contact Name*">
+                <input
+                  value={emergencyContactName}
+                  onChange={(e) => setEmergencyContactName(e.target.value)}
+                  placeholder="Jane Doe"
+                />
+              </Field>
+              <Field label="Contact Phone*">
+                <input
+                  value={emergencyContactPhone}
+                  onChange={(e) => setEmergencyContactPhone(e.target.value)}
+                  placeholder="+91 98765 43210"
+                />
+              </Field>
+              <Field label="Relation*">
+                <input
+                  value={emergencyContactRelation}
+                  onChange={(e) => setEmergencyContactRelation(e.target.value)}
+                  placeholder="Spouse / Parent / Friend"
+                />
+              </Field>
+            </div>
+
+            <Divider />
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <Field label="Date of Birth*">
+                <input value={dob} onChange={(e) => setDob(e.target.value)} placeholder="DD-MM-YYYY" />
+              </Field>
+              <Field label="Place (optional)">
+                <input value={place} onChange={(e) => setPlace(e.target.value)} placeholder="City / State" />
+              </Field>
+            </div>
+
+            <Field label="Password*">
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Create a password"
               />
-            </label>
+            </Field>
 
-            <div className="grid gap-4 md:grid-cols-2">
-              <label className="grid gap-2">
-                <span className="text-sm font-medium text-white/85">Full name</span>
-                <input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="As per document" />
+            <Divider />
+
+            <div className="grid gap-3 rounded-xl border border-white/10 bg-white/5 p-4">
+              <div className="text-sm font-semibold text-white/90">Consent & Permissions</div>
+
+              <label className="flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  checked={consentLocationTracking}
+                  onChange={(e) => setConsentLocationTracking(e.target.checked)}
+                  style={{ marginTop: 3 }}
+                />
+                <div className="text-sm text-white/70">
+                  I consent to real-time location tracking for safety and emergency response purposes.
+                </div>
               </label>
-              <label className="grid gap-2">
-                <span className="text-sm font-medium text-white/85">DOB</span>
-                <input value={dob} onChange={(e) => setDob(e.target.value)} placeholder="YYYY-MM-DD" />
+
+              <label className="flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  checked={consentBlockchainStorage}
+                  onChange={(e) => setConsentBlockchainStorage(e.target.checked)}
+                  style={{ marginTop: 3 }}
+                />
+                <div className="text-sm text-white/70">
+                  I consent to storing my verification credentials on blockchain/IPFS for secure verification and
+                  data protection.
+                </div>
               </label>
             </div>
 
-            <label className="grid gap-2">
-              <span className="text-sm font-medium text-white/85">Place</span>
-              <input value={place} onChange={(e) => setPlace(e.target.value)} placeholder="City / State" />
-            </label>
-
-            <InlineRow className="pt-1">
-              <Button disabled={busy} onClick={onRegister}>
-                {busy ? "Creating..." : "Create account"}
+            <InlineRow className="pt-2">
+              <Button disabled={busy || !consentLocationTracking || !consentBlockchainStorage} onClick={onRegister}>
+                {busy ? "Creating…" : "Create Tourist Digital ID"}
               </Button>
               <Link href="/login" className="ml-auto">
-                <Button variant="ghost">Already have an account?</Button>
+                <Button variant="ghost">Login</Button>
               </Link>
             </InlineRow>
 
             <div className="text-xs text-white/60">
-              Authority?{" "}
+              Authorities?{" "}
               <Link className="text-cyan-200 hover:text-cyan-100" href="/authority/register">
                 Register as Authority
               </Link>
             </div>
           </div>
         </GlassCard>
-
-        {result && (
-          <GlassCard title="Result / debug">
-            <Pre value={result} />
-          </GlassCard>
-        )}
       </div>
 
       <Toast

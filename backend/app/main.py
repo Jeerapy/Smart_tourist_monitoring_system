@@ -310,7 +310,7 @@ async def upload_document_for_verification(
     doc_type: str = Form("OTHER"),
     # Public-mode inputs for simple testing (no Supabase needed)
     full_name: str | None = Form(None),
-    dob: str | None = Form(None),  # YYYY-MM-DD
+    dob: str | None = Form(None),  # DD-MM-YYYY or YYYY-MM-DD
     ctx: AuthContext = Depends(get_auth_context),
     _: AuthUser = Depends(require_role("user")),
 ) -> dict[str, Any]:
@@ -373,7 +373,7 @@ async def public_upload_document_for_verification(
     file: UploadFile = File(...),
     doc_type: str = Form("OTHER"),
     full_name: str = Form(...),
-    dob: str = Form(...),  # YYYY-MM-DD
+    dob: str = Form(...),  # DD-MM-YYYY or YYYY-MM-DD
 ) -> dict[str, Any]:
     raw = await file.read()
     mime = file.content_type or "application/octet-stream"
