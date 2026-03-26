@@ -33,3 +33,27 @@ export async function backendFetch<T>(
   return data as T;
 }
 
+export async function backendUploadForm<T>(path: string, form: FormData, init?: RequestInit): Promise<T> {
+  const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
+  const token = await getAccessToken();
+  const res = await fetch(`${baseUrl}${path}`, {
+    ...init,
+    method: init?.method || "POST",
+    headers: {
+      ...(init?.headers || {}),
+      Authorization: `Bearer ${token}`,
+    },
+    body: form,
+  });
+
+  const text = await res.text();
+  let data: any = text;
+  try {
+    data = JSON.parse(text);
+  } catch {}
+  if (!res.ok) {
+    throw new Error(`Backend ${res.status}: ${typeof data === "string" ? data : JSON.stringify(data)}`);
+  }
+  return data as T;
+}
+

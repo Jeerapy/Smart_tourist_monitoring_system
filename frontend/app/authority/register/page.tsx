@@ -1,18 +1,15 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { supabase } from "../../lib/supabaseClient";
-import { Badge, Button, Container, GlassCard, InlineRow, Pre, Toast } from "../components/Ui";
+import { useState } from "react";
+import { supabase } from "../../../lib/supabaseClient";
+import { Badge, Button, Container, GlassCard, InlineRow, Pre, Toast } from "../../components/Ui";
 
-export default function RegisterPage() {
+export default function AuthorityRegisterPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [fullName, setFullName] = useState("");
-  const [dob, setDob] = useState(""); // YYYY-MM-DD
-  const [place, setPlace] = useState("");
   const [result, setResult] = useState<any>(null);
   const [busy, setBusy] = useState(false);
   const [toastOpen, setToastOpen] = useState(false);
@@ -31,30 +28,24 @@ export default function RegisterPage() {
     setBusy(true);
     setResult(null);
     try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-      });
+      const { data, error } = await supabase.auth.signUp({ email, password });
       if (error) throw error;
 
       const userId = data.user?.id;
       if (!userId) throw new Error("No user id returned from signUp");
 
-      // RLS requires an authenticated session token to insert into `profiles`.
       // If email confirmation is enabled, signUp may NOT create a session.
       let { data: sessionData } = await supabase.auth.getSession();
       if (!sessionData.session) {
-        const { data: signInData, error: signInErr } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
+        const { data: signInData, error: signInErr } = await supabase.auth.signInWithPassword({ email, password });
         if (signInErr) {
           setResult({
             ok: true,
             userId,
             message:
-              "Account created, but no session yet (email confirmation may be required). Confirm email, then login and the app can create your profile.",
+              "Account created, but no session yet (email confirmation may be required). Confirm email, then login.",
           });
+          showToast("warning", "Confirm email", "If confirmation is enabled, check inbox then login.");
           return;
         }
         sessionData = { session: signInData.session };
@@ -62,15 +53,12 @@ export default function RegisterPage() {
 
       const { error: insertErr } = await supabase.from("profiles").insert({
         id: userId,
-        role: "user",
-        full_name: fullName,
-        dob: dob || null,
-        place: place || null,
+        role: "authority",
       });
       if (insertErr) throw insertErr;
 
-      setResult({ ok: true, userId, message: "Registered. You can login now." });
-      showToast("success", "Registered", "Account created. Please login.");
+      setResult({ ok: true, userId, message: "Registered (authority). Please login." });
+      showToast("success", "Registered", "Authority account created. Please login.");
       router.push("/login");
     } catch (e: any) {
       const msg = e?.message ?? String(e);
@@ -86,18 +74,18 @@ export default function RegisterPage() {
       <div className="mx-auto grid w-full max-w-xl gap-5">
         <div className="text-center">
           <div className="mb-3 flex items-center justify-center gap-2">
-            <Badge tone="info">Tourist</Badge>
-            <Badge tone="neutral">Role: user</Badge>
+            <Badge tone="warning">Authorities</Badge>
+            <Badge tone="neutral">Role: authority</Badge>
           </div>
-          <h1 className="text-3xl font-semibold tracking-tight text-white/95">Register</h1>
-          <p className="mt-2 text-sm text-white/65">Create your account and profile for verification.</p>
+          <h1 className="text-3xl font-semibold tracking-tight text-white/95">Authority register</h1>
+          <p className="mt-2 text-sm text-white/65">Create an authority account for zone management and alert response.</p>
         </div>
 
-        <GlassCard title="Create account (User)">
+        <GlassCard title="Create account (Authority)">
           <div className="grid gap-4">
             <label className="grid gap-2">
               <span className="text-sm font-medium text-white/85">Email</span>
-              <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
+              <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="authority@example.com" />
             </label>
             <label className="grid gap-2">
               <span className="text-sm font-medium text-white/85">Password</span>
@@ -109,25 +97,9 @@ export default function RegisterPage() {
               />
             </label>
 
-            <div className="grid gap-4 md:grid-cols-2">
-              <label className="grid gap-2">
-                <span className="text-sm font-medium text-white/85">Full name</span>
-                <input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="As per document" />
-              </label>
-              <label className="grid gap-2">
-                <span className="text-sm font-medium text-white/85">DOB</span>
-                <input value={dob} onChange={(e) => setDob(e.target.value)} placeholder="YYYY-MM-DD" />
-              </label>
-            </div>
-
-            <label className="grid gap-2">
-              <span className="text-sm font-medium text-white/85">Place</span>
-              <input value={place} onChange={(e) => setPlace(e.target.value)} placeholder="City / State" />
-            </label>
-
             <InlineRow className="pt-1">
-              <Button disabled={busy} onClick={onRegister}>
-                {busy ? "Creating..." : "Create account"}
+              <Button disabled={busy} onClick={onRegister} variant="secondary">
+                {busy ? "Creating..." : "Create authority account"}
               </Button>
               <Link href="/login" className="ml-auto">
                 <Button variant="ghost">Already have an account?</Button>
@@ -135,9 +107,9 @@ export default function RegisterPage() {
             </InlineRow>
 
             <div className="text-xs text-white/60">
-              Authority?{" "}
-              <Link className="text-cyan-200 hover:text-cyan-100" href="/authority/register">
-                Register as Authority
+              Tourist user?{" "}
+              <Link className="text-cyan-200 hover:text-cyan-100" href="/register">
+                Register as User
               </Link>
             </div>
           </div>
