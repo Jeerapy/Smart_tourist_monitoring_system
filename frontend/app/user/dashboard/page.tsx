@@ -1,12 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../../../lib/supabaseClient";
 import { backendFetch, backendFetchBlob, backendUploadForm } from "../../../lib/backend";
-import { MapView } from "../../components/MapView";
 import { Badge, Button, Container, Divider, Field, GlassCard, InlineRow, Modal, Pre, Toast } from "../../components/Ui";
 import { convertDDMMYYYYToISO, formatISOToDDMMYYYY } from "../../../lib/dob";
+
+const MapView = dynamic(() => import("../../components/MapView").then((m) => m.MapView), { ssr: false });
 
 export default function UserDashboard() {
   const [profile, setProfile] = useState<any>(null);
@@ -113,12 +115,27 @@ export default function UserDashboard() {
     loadAll().catch((e) => setVerification({ error: String(e) }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
+  
   useEffect(() => {
     if (!("geolocation" in navigator)) {
       setGeoErr("Geolocation is not supported in this browser.");
       return;
     }
+  
+    // 🔥 Ask permission immediately (this triggers popup)
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setUserLat(pos.coords.latitude);
+        setUserLng(pos.coords.longitude);
+        setGeoErr(null);
+      },
+      (err) => {
+        setGeoErr(err.message || "Location permission denied.");
+      },
+      { enableHighAccuracy: true }
+    );
+  
+    // 🔥 Start continuous tracking
     const id = navigator.geolocation.watchPosition(
       (pos) => {
         setGeoErr(null);
@@ -130,9 +147,10 @@ export default function UserDashboard() {
       },
       { enableHighAccuracy: true, maximumAge: 5000, timeout: 12000 }
     );
+  
     return () => navigator.geolocation.clearWatch(id);
   }, []);
-
+  
   async function sendPingIfDue(force = false) {
     if (pinging) return;
     if (typeof userLat !== "number" || typeof userLng !== "number") return;
@@ -290,14 +308,20 @@ export default function UserDashboard() {
     <Container className="pt-10">
       <div className="mb-6 flex flex-wrap items-end gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-white/95">User dashboard</h1>
-          <div className="mt-1 text-sm text-white/60">
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">User dashboard</h1>
+          <div className="mt-1 text-sm text-muted-foreground">
             Live safety view: location + geofences + SOS + verification.
           </div>
         </div>
         <div className="ml-auto flex flex-wrap items-center gap-2">
           {isVerified ? <Badge tone="success">Verified</Badge> : <Badge tone="warning">Not verified</Badge>}
-          {geoErr ? <Badge tone="danger">Location off</Badge> : <Badge tone="info">Location on</Badge>}
+          {geoErr ? (
+  <Badge tone="danger">Location blocked</Badge>
+) : userLat ? (
+  <Badge tone="success">Live tracking</Badge>
+) : (
+  <Badge tone="warning">Requesting location...</Badge>
+)}
           <Button variant="secondary" disabled={busy} onClick={() => loadAll()}>
             {busy ? "Refreshing…" : "Refresh"}
           </Button>
@@ -319,7 +343,7 @@ export default function UserDashboard() {
             title="Emergency"
             right={
               <Badge tone="danger">
-                <span className="text-red-100/90">SOS</span>
+                <span className="text-critical">SOS</span>
               </Badge>
             }
           >
@@ -327,7 +351,7 @@ export default function UserDashboard() {
               <Button variant="danger" className="w-full py-3 text-base" onClick={() => setSosOpen(true)}>
                 SOS
               </Button>
-              <div className="text-xs text-white/65">
+              <div className="text-xs text-muted-foreground">
                 Use SOS only in real emergencies. Sending SOS creates an alert for authorities. Calling opens your phone
                 dialer (India: 100).
               </div>
@@ -342,22 +366,22 @@ export default function UserDashboard() {
               </InlineRow>
             }
           >
-            <div className="grid gap-3 text-sm text-white/75">
+            <div className="grid gap-3 text-sm text-foreground/85">
               <div className="flex items-center justify-between">
-                <span className="text-white/60">Latitude</span>
+                <span className="text-muted-foreground">Latitude</span>
                 <span className="font-mono">{typeof userLat === "number" ? userLat.toFixed(6) : "—"}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-white/60">Longitude</span>
+                <span className="text-muted-foreground">Longitude</span>
                 <span className="font-mono">{typeof userLng === "number" ? userLng.toFixed(6) : "—"}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-white/60">Last ping</span>
+                <span className="text-muted-foreground">Last ping</span>
                 <span className="font-mono">
                   {lastPingAtRef.current ? new Date(lastPingAtRef.current).toLocaleTimeString() : "—"}
                 </span>
               </div>
-              {geoErr ? <div className="text-xs text-red-200/85">{geoErr}</div> : null}
+              {geoErr ? <div className="text-xs text-warning">{geoErr}</div> : null}
               <InlineRow className="pt-1">
                 <Button variant="secondary" disabled={pinging} onClick={() => sendPingIfDue(true)}>
                   {pinging ? "Sending…" : "Ping now"}
@@ -365,6 +389,7 @@ export default function UserDashboard() {
                 <Button variant="ghost" onClick={() => setPingStatus(null)}>
                   Clear
                 </Button>
+                
               </InlineRow>
             </div>
           </GlassCard>
@@ -398,7 +423,7 @@ export default function UserDashboard() {
 
               <Divider className="my-2" />
 
-              <div className="text-sm font-semibold text-white/80">Citizen & ID</div>
+              <div className="text-sm font-semibold text-foreground/90">Citizen & ID</div>
               <div className="grid gap-4 md:grid-cols-2">
                 <Field label="Citizenship">
                   <select
@@ -448,7 +473,7 @@ export default function UserDashboard() {
 
               <Divider className="my-2" />
 
-              <div className="text-sm font-semibold text-white/80">Emergency Contact</div>
+              <div className="text-sm font-semibold text-foreground/90">Emergency Contact</div>
               <div className="grid gap-4 md:grid-cols-3">
                 <Field label="Name">
                   <input
@@ -475,8 +500,8 @@ export default function UserDashboard() {
 
               <Divider className="my-2" />
 
-              <div className="grid gap-2 rounded-xl border border-white/10 bg-white/5 p-4">
-                <div className="text-sm font-semibold text-white/90">Consent & Permissions</div>
+              <div className="grid gap-2 rounded-xl border border-border bg-card/30 p-4">
+                <div className="text-sm font-semibold text-foreground">Consent & Permissions</div>
 
                 <label className="flex items-start gap-3">
                   <input
@@ -485,7 +510,7 @@ export default function UserDashboard() {
                     onChange={(e) => setProfileEdit((p) => ({ ...p, consent_location_tracking: e.target.checked }))}
                     style={{ marginTop: 3 }}
                   />
-                  <div className="text-sm text-white/70">
+                  <div className="text-sm text-muted-foreground">
                     Location tracking for safety and emergency response purposes.
                   </div>
                 </label>
@@ -497,7 +522,7 @@ export default function UserDashboard() {
                     onChange={(e) => setProfileEdit((p) => ({ ...p, consent_blockchain_storage: e.target.checked }))}
                     style={{ marginTop: 3 }}
                   />
-                  <div className="text-sm text-white/70">
+                  <div className="text-sm text-muted-foreground">
                     Storing verification credentials on blockchain/IPFS for secure verification and data protection.
                   </div>
                 </label>
@@ -517,8 +542,9 @@ export default function UserDashboard() {
           <GlassCard title="Documents & verification">
             <div className="grid gap-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="text-sm text-white/75">
-                  Status: {isVerified ? <span className="text-emerald-200">Verified</span> : <span className="text-amber-200">Not verified</span>}
+                <div className="text-sm text-foreground/85">
+                  Status:{" "}
+                  {isVerified ? <span className="text-safe">Verified</span> : <span className="text-warning">Not verified</span>}
                 </div>
                 <Button variant="secondary" disabled={busy} onClick={() => loadAll()}>
                   Refresh status
@@ -544,20 +570,20 @@ export default function UserDashboard() {
               {uploadRes ? <Pre value={uploadRes} /> : null}
 
               <Divider className="my-2" />
-              <div className="text-sm font-semibold text-white/85">Digital ID</div>
-              <div className="text-xs text-white/70">
+              <div className="text-sm font-semibold text-foreground/90">Digital ID</div>
+              <div className="text-xs text-muted-foreground">
                 {digitalId?.digital_id || "Not generated yet (created after successful verified proof pipeline)."}
               </div>
 
-              <div className="text-sm font-semibold text-white/85">My Documents</div>
+              <div className="text-sm font-semibold text-foreground/90">My Documents</div>
               <div className="grid gap-2">
                 {documents.length === 0 ? (
-                  <div className="text-xs text-white/60">No uploaded documents found yet.</div>
+                  <div className="text-xs text-muted-foreground">No uploaded documents found yet.</div>
                 ) : (
                   documents.map((d) => (
-                    <div key={d.id} className="rounded-xl border border-white/10 bg-white/5 p-3">
-                      <div className="mb-1 text-xs text-white/65">{d.file_name || d.doc_type || "Document"}</div>
-                      <div className="text-xs text-white/55">
+                    <div key={d.id} className="glass-card rounded-xl p-3">
+                      <div className="mb-1 text-xs text-muted-foreground">{d.file_name || d.doc_type || "Document"}</div>
+                      <div className="text-xs text-muted-foreground">
                         {d.ipfs_cid ? `CID: ${d.ipfs_cid}` : "No CID yet"} • {d.onchain_tx_hash ? `TX: ${d.onchain_tx_hash}` : "No TX yet"}
                       </div>
                       <InlineRow className="mt-2">
@@ -577,29 +603,34 @@ export default function UserDashboard() {
           <MapView userLat={userLat} userLng={userLng} />
 
           <GlassCard title="Geofence response (last ping)">
-            {pingStatus ? <Pre value={pingStatus} /> : <div className="text-sm text-white/60">No ping yet.</div>}
+            {pingStatus ? <Pre value={pingStatus} /> : <div className="text-sm text-muted-foreground">No ping yet.</div>}
           </GlassCard>
 
           <GlassCard title="My alerts">
-            {alerts ? <Pre value={alerts} /> : <div className="text-sm text-white/60">No alerts loaded yet.</div>}
+            {alerts ? <Pre value={alerts} /> : <div className="text-sm text-muted-foreground">No alerts loaded yet.</div>}
           </GlassCard>
 
           <GlassCard title="Verification (backend)">
-            {verification ? <Pre value={verification} /> : <div className="text-sm text-white/60">Loading…</div>}
+            {verification ? <Pre value={verification} /> : <div className="text-sm text-muted-foreground">Loading…</div>}
           </GlassCard>
         </div>
       </div>
 
       <Modal open={sosOpen} title="Emergency SOS" onClose={() => setSosOpen(false)}>
-        <div className="grid gap-4 text-sm text-white/75">
+        <div className="grid gap-4 text-sm text-muted-foreground">
           <p>
-            Choose an action. <span className="text-white/90">Send alert</span> will create a SOS alert for authorities.
+            Choose an action. <span className="text-foreground">Send alert</span> will create a SOS alert for authorities.
           </p>
           <InlineRow>
-            <Button variant="danger" disabled={sosBusy} onClick={sendSosAlert}>
+            <Button
+              variant="danger"
+              disabled={sosBusy}
+              onClick={sendSosAlert}
+              className="bg-critical/95 border-critical/80 text-critical-foreground"
+            >
               {sosBusy ? "Sending…" : "Send alert"}
             </Button>
-            <Button variant="secondary" onClick={callEmergency}>
+            <Button variant="secondary" onClick={callEmergency} className="border-warning/50 bg-warning/15 text-warning hover:bg-warning/20">
               Call emergency (100)
             </Button>
             <Button variant="ghost" onClick={() => setSosOpen(false)}>

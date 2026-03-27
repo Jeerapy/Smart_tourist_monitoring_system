@@ -142,7 +142,7 @@ async def location_ping(
 ) -> dict[str, Any]:
     sb = SupabaseRest()
 
-    ping_payload = body.model_dump()
+    ping_payload = body.model_dump(mode="json")
     ping_payload["user_id"] = ctx.user.user_id
     ping_row = await sb.insert_ping(bearer_token=ctx.token, payload=ping_payload)
 
@@ -290,7 +290,9 @@ async def authority_nearby_alerts(
             continue
 
         d = haversine_m(lat, lng, src_lat, src_lng)
-        if d <= radius:
+        # Always include SOS alerts so authorities never miss emergency reports
+        # due to a center/radius mismatch in the dashboard controls.
+        if d <= radius or str(a.get("type") or "").upper() == "SOS":
             results.append({**a, "user_last_location": ll, "distance_m": d})
 
     results.sort(key=lambda x: x.get("distance_m", 0))

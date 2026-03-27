@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import { supabase } from "../../../lib/supabaseClient";
 import { backendFetch, backendFetchBlob } from "../../../lib/backend";
-import { AuthorityMap } from "../../components/AuthorityMap";
 import {
   applyAlertFilters,
   type AlertFilterState,
@@ -14,6 +14,10 @@ import {
 } from "../../../lib/authority";
 import { Badge, Button, Container, Field, GlassCard, InlineRow, Modal, Pre, Toast } from "../../components/Ui";
 
+const AuthorityMap = dynamic(() => import("../../components/AuthorityMap").then((m) => m.AuthorityMap), {
+  ssr: false,
+});
+
 export default function AuthorityDashboard() {
   const [me, setMe] = useState<any>(null);
   const [zones, setZones] = useState<DangerZone[]>([]);
@@ -22,7 +26,7 @@ export default function AuthorityDashboard() {
   const [busy, setBusy] = useState(false);
   const [pollEnabled, setPollEnabled] = useState(true);
   const [pollSec, setPollSec] = useState("12");
-  const [radiusM, setRadiusM] = useState("5000");
+  const [radiusM, setRadiusM] = useState("20000");
   const [actionBusyId, setActionBusyId] = useState<string | null>(null);
 
   const [aLat, setALat] = useState("12.9716");
@@ -98,7 +102,8 @@ export default function AuthorityDashboard() {
   async function loadAll() {
     setBusy(true);
     try {
-      await Promise.all([loadMe(), loadZones(), loadNearbyAlerts()]);
+      await loadMe();
+      await Promise.allSettled([loadZones(), loadNearbyAlerts()]);
     } finally {
       setBusy(false);
     }
@@ -247,8 +252,8 @@ export default function AuthorityDashboard() {
     <Container className="pt-10">
       <div className="mb-5 flex flex-wrap items-end gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-white/95">Authority dashboard</h1>
-          <div className="mt-1 text-sm text-white/65">Monitor nearby incidents, respond, and manage danger zones.</div>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Authority dashboard</h1>
+          <div className="mt-1 text-sm text-muted-foreground">Monitor nearby incidents, respond, and manage danger zones.</div>
         </div>
         <div className="ml-auto flex flex-wrap items-center gap-2">
           <Badge tone="info">{nearby?.count || 0} nearby alerts</Badge>
@@ -294,7 +299,7 @@ export default function AuthorityDashboard() {
             </Button>
           </div>
         </div>
-        {geoErr ? <div className="mt-2 text-xs text-amber-200/80">Location note: {geoErr}</div> : null}
+        {geoErr ? <div className="mt-2 text-xs text-warning">Location note: {geoErr}</div> : null}
       </GlassCard>
 
       <div className="grid gap-5 xl:grid-cols-[1.35fr_1fr]">
@@ -372,13 +377,13 @@ export default function AuthorityDashboard() {
 
             <div className="grid gap-3">
               {filteredAlerts.length === 0 ? (
-                <div className="text-sm text-white/60">No nearby alerts for current filters.</div>
+                <div className="text-sm text-muted-foreground">No nearby alerts for current filters.</div>
               ) : (
                 filteredAlerts.map((a) => (
                   <div
                     key={a.id}
                     className={`rounded-xl border p-3 ${
-                      selectedAlertId === a.id ? "border-cyan-300/40 bg-cyan-300/5" : "border-white/10 bg-white/5"
+                      selectedAlertId === a.id ? "border-primary/40 bg-primary/5" : "border-border bg-card/30"
                     }`}
                     onClick={() => setSelectedAlertId(a.id)}
                   >
@@ -386,9 +391,9 @@ export default function AuthorityDashboard() {
                       <Badge tone={riskTone(a.risk_level || 1)}>{a.type}</Badge>
                       <Badge tone="neutral">{a.status}</Badge>
                       <Badge tone="info">{Math.round(a.distance_m || 0)}m</Badge>
-                      <span className="ml-auto text-xs text-white/60">{a.user_id}</span>
+                      <span className="ml-auto text-xs text-muted-foreground">{a.user_id}</span>
                     </div>
-                    <div className="text-sm text-white/80">{a.summary || "No summary"}</div>
+                    <div className="text-sm text-foreground/85">{a.summary || "No summary"}</div>
                     <InlineRow className="mt-3">
                       <Button
                         variant="secondary"
@@ -430,7 +435,7 @@ export default function AuthorityDashboard() {
                 </InlineRow>
               </>
             ) : (
-              <div className="text-sm text-white/60">Select an alert from the list or map.</div>
+              <div className="text-sm text-muted-foreground">Select an alert from the list or map.</div>
             )}
           </GlassCard>
 
@@ -471,17 +476,17 @@ export default function AuthorityDashboard() {
           <GlassCard title="Existing zones">
             <div className="grid gap-3">
               {zones.length === 0 ? (
-                <div className="text-sm text-white/60">No zones available.</div>
+                <div className="text-sm text-muted-foreground">No zones available.</div>
               ) : (
                 zones
                   .filter((z) => z.shape_type === "CIRCLE")
                   .map((z) => (
-                    <div key={z.id} className="rounded-xl border border-white/10 bg-white/5 p-3">
+                    <div key={z.id} className="glass-card rounded-xl p-3">
                       <div className="mb-2 flex items-center gap-2">
-                        <div className="text-sm font-semibold text-white/90">{z.name}</div>
+                        <div className="text-sm font-semibold text-foreground">{z.name}</div>
                         <Badge tone={riskTone(z.risk_level || 1)}>Risk {z.risk_level}</Badge>
                       </div>
-                      <div className="text-xs text-white/65">
+                      <div className="text-xs text-muted-foreground">
                         Lat {z.circle_center_lat}, Lng {z.circle_center_lng}, Radius {Math.round(Number(z.circle_radius_m || 0))}m
                       </div>
                       <InlineRow className="mt-3">

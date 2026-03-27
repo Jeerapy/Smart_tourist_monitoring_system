@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabaseClient";
 import { convertDDMMYYYYToISO } from "../../lib/dob";
 import { Badge, Button, Container, Divider, Field, GlassCard, InlineRow, Toast } from "../components/Ui";
+import { motion } from "framer-motion";
+import { Shield } from "lucide-react";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -118,211 +120,291 @@ export default function RegisterPage() {
   }
 
   return (
-    <Container className="pt-12">
-      <div className="mx-auto w-full max-w-xl">
-        <div className="text-center">
-          <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl border border-emerald-300/20 bg-emerald-400/10 shadow-[0_0_0_1px_rgba(255,255,255,0.04)]">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path
-                d="M12 2 20 6v6c0 5-3.4 9.3-8 10-4.6-.7-8-5-8-10V6l8-4Z"
-                stroke="rgba(34,197,94,0.95)"
-                strokeWidth="1.8"
-                strokeLinejoin="round"
-              />
-              <path
-                d="M8.5 12.2 10.7 14.4 15.6 9.5"
-                stroke="rgba(34,197,94,0.95)"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </div>
+    <div className="min-h-screen">
+      <div className="grid min-h-screen lg:grid-cols-2">
+        <div className="relative hidden overflow-hidden p-12 lg:flex lg:items-center lg:justify-center">
+          <div className="absolute inset-0 gradient-hero" />
+          <div className="hero-mesh" />
+          <div className="particle-grid" />
+          <div className="absolute left-1/3 top-1/3 h-72 w-72 rounded-full bg-primary/20 blur-[100px]" />
+          <div className="absolute bottom-1/3 right-1/3 h-56 w-56 rounded-full bg-primary/15 blur-[80px]" />
 
-          <div className="mb-3 flex items-center justify-center gap-2">
-            <Badge tone="info">Tourist</Badge>
-            <Badge tone="neutral">Role: user</Badge>
-          </div>
-          <h1 className="text-3xl font-semibold tracking-tight text-white/95">Create Tourist Digital ID</h1>
-          <p className="mt-2 text-sm text-white/65">
-            Complete registration for geofence safety, SOS escalation, and document verification.
-          </p>
+          <motion.div
+            initial={{ opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7 }}
+            className="relative mx-auto max-w-md text-center"
+          >
+            <motion.div animate={{ y: [0, -8, 0] }} transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}>
+              <div className="mx-auto mb-8 w-fit rounded-2xl border border-border/70 bg-card/25 p-5 backdrop-blur-xl">
+                <div className="h-10 w-10 rounded-full bg-safe shadow-[0_0_22px_rgba(34,197,94,0.55)]" />
+              </div>
+            </motion.div>
+            <h2 className="font-mono text-3xl font-bold text-foreground">Create Your Digital ID</h2>
+            <p className="mt-4 text-foreground/60">Register once, then use SOS + verification anywhere.</p>
+          </motion.div>
         </div>
 
-        <GlassCard className="mt-7" title={undefined}>
-          <div className="grid gap-6">
-            <div className="grid gap-4 md:grid-cols-2">
-              <Field label={`Full Name*`}>
-                <input
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  placeholder="John Doe"
-                />
-              </Field>
-              <Field label={`Email ID*`}>
-                <input
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  type="email"
-                  placeholder="tourist@example.com"
-                />
-              </Field>
-            </div>
-
-            <Divider />
-
-            <div className="text-sm font-semibold text-white/90">Citizen Information</div>
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <Field label="Citizenship*">
-                <select value={citizenship} onChange={(e) => setCitizenship(e.target.value as any)}>
-                  <option value="INDIAN">Indian Citizen</option>
-                  <option value="FOREIGN">Foreign Citizen</option>
-                </select>
-              </Field>
-
-              {citizenship === "INDIAN" ? (
-                <Field label="Aadhaar Card Number*">
-                  <input
-                    value={aadhaarNumber}
-                    onChange={(e) => setAadhaarNumber(e.target.value)}
-                    placeholder="1234 5678 9012"
-                  />
-                </Field>
-              ) : (
-                <Field label="Passport Number*">
-                  <input
-                    value={passportNumber}
-                    onChange={(e) => setPassportNumber(e.target.value)}
-                    placeholder="Passport ID"
-                  />
-                </Field>
-              )}
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <Field label="Phone Number*">
-                <input
-                  value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(e.target.value)}
-                  placeholder="+91 98765 43210"
-                />
-              </Field>
-              <Field label="Alternative Phone Number">
-                <input
-                  value={alternativePhoneNumber}
-                  onChange={(e) => setAlternativePhoneNumber(e.target.value)}
-                  placeholder="+91 98765 43211"
-                />
-              </Field>
-            </div>
-
-            <Divider />
-
-            <div className="text-sm font-semibold text-white/90">Emergency Contact Details</div>
-
-            <div className="grid gap-4 md:grid-cols-3">
-              <Field label="Contact Name*">
-                <input
-                  value={emergencyContactName}
-                  onChange={(e) => setEmergencyContactName(e.target.value)}
-                  placeholder="Jane Doe"
-                />
-              </Field>
-              <Field label="Contact Phone*">
-                <input
-                  value={emergencyContactPhone}
-                  onChange={(e) => setEmergencyContactPhone(e.target.value)}
-                  placeholder="+91 98765 43210"
-                />
-              </Field>
-              <Field label="Relation*">
-                <input
-                  value={emergencyContactRelation}
-                  onChange={(e) => setEmergencyContactRelation(e.target.value)}
-                  placeholder="Spouse / Parent / Friend"
-                />
-              </Field>
-            </div>
-
-            <Divider />
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <Field label="Date of Birth*">
-                <input value={dob} onChange={(e) => setDob(e.target.value)} placeholder="DD-MM-YYYY" />
-              </Field>
-              <Field label="Place (optional)">
-                <input value={place} onChange={(e) => setPlace(e.target.value)} placeholder="City / State" />
-              </Field>
-            </div>
-
-            <Field label="Password*">
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Create a password"
-              />
-            </Field>
-
-            <Divider />
-
-            <div className="grid gap-3 rounded-xl border border-white/10 bg-white/5 p-4">
-              <div className="text-sm font-semibold text-white/90">Consent & Permissions</div>
-
-              <label className="flex items-start gap-3">
-                <input
-                  type="checkbox"
-                  checked={consentLocationTracking}
-                  onChange={(e) => setConsentLocationTracking(e.target.checked)}
-                  style={{ marginTop: 3 }}
-                />
-                <div className="text-sm text-white/70">
-                  I consent to real-time location tracking for safety and emergency response purposes.
+        <div className="flex flex-col bg-background">
+          <Container className="py-0">
+            <div className="flex items-center justify-between py-6">
+              <Link href="/" className="flex items-center gap-2">
+                <div className="rounded-lg bg-primary/10 p-2">
+                  <Shield className="h-5 w-5 text-primary" />
                 </div>
-              </label>
+                <span className="font-bold">STMS</span>
+              </Link>
+              <InlineRow className="gap-2">
+                <Badge tone="info">Tourist</Badge>
+                <Badge tone="neutral">Role: user</Badge>
+              </InlineRow>
+            </div>
 
-              <label className="flex items-start gap-3">
-                <input
-                  type="checkbox"
-                  checked={consentBlockchainStorage}
-                  onChange={(e) => setConsentBlockchainStorage(e.target.checked)}
-                  style={{ marginTop: 3 }}
-                />
-                <div className="text-sm text-white/70">
-                  I consent to storing my verification credentials on blockchain/IPFS for secure verification and
-                  data protection.
+            <div className="flex flex-1 items-center justify-center pb-12">
+              <motion.div
+                initial={{ opacity: 0, y: 14 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+                className="w-full max-w-xl"
+              >
+                <h1 className="font-mono text-3xl font-bold">Create Tourist Digital ID</h1>
+                <p className="mt-2 text-muted-foreground">
+                  Complete registration for geofence safety, SOS escalation, and verification.
+                </p>
+
+                <div className="mt-8">
+                  <GlassCard title={undefined} className="p-0">
+                    <div className="p-6">
+                      <div className="grid gap-6">
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <Field label="Full Name*">
+                            <div className="relative">
+                              <span className="absolute left-3.5 top-1/2 h-2 w-2 -translate-y-1/2 rounded-full bg-primary/70" />
+                              <input
+                                className="input-premium"
+                                value={fullName}
+                                onChange={(e) => setFullName(e.target.value)}
+                                placeholder="John Doe"
+                              />
+                            </div>
+                          </Field>
+                          <Field label="Email ID*">
+                            <div className="relative">
+                              <span className="absolute left-3.5 top-1/2 h-2 w-2 -translate-y-1/2 rounded-full bg-primary/70" />
+                              <input
+                                className="input-premium"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                type="email"
+                                placeholder="tourist@example.com"
+                              />
+                            </div>
+                          </Field>
+                        </div>
+
+                        <Divider />
+
+                        <div className="text-sm font-semibold text-foreground">Citizen Information</div>
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <Field label="Citizenship*">
+                            <select value={citizenship} onChange={(e) => setCitizenship(e.target.value as any)}>
+                              <option value="INDIAN">Indian Citizen</option>
+                              <option value="FOREIGN">Foreign Citizen</option>
+                            </select>
+                          </Field>
+
+                          {citizenship === "INDIAN" ? (
+                            <Field label="Aadhaar Card Number*">
+                              <div className="relative">
+                                <span className="absolute left-3.5 top-1/2 h-2 w-2 -translate-y-1/2 rounded-full bg-primary/70" />
+                                <input
+                                  className="input-premium"
+                                  value={aadhaarNumber}
+                                  onChange={(e) => setAadhaarNumber(e.target.value)}
+                                  placeholder="1234 5678 9012"
+                                />
+                              </div>
+                            </Field>
+                          ) : (
+                            <Field label="Passport Number*">
+                              <div className="relative">
+                                <span className="absolute left-3.5 top-1/2 h-2 w-2 -translate-y-1/2 rounded-full bg-primary/70" />
+                                <input
+                                  className="input-premium"
+                                  value={passportNumber}
+                                  onChange={(e) => setPassportNumber(e.target.value)}
+                                  placeholder="Passport ID"
+                                />
+                              </div>
+                            </Field>
+                          )}
+                        </div>
+
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <Field label="Phone Number*">
+                            <div className="relative">
+                              <span className="absolute left-3.5 top-1/2 h-2 w-2 -translate-y-1/2 rounded-full bg-primary/70" />
+                              <input
+                                className="input-premium"
+                                value={phoneNumber}
+                                onChange={(e) => setPhoneNumber(e.target.value)}
+                                placeholder="+91 98765 43210"
+                              />
+                            </div>
+                          </Field>
+                          <Field label="Alternative Phone Number">
+                            <div className="relative">
+                              <span className="absolute left-3.5 top-1/2 h-2 w-2 -translate-y-1/2 rounded-full bg-primary/70" />
+                              <input
+                                className="input-premium"
+                                value={alternativePhoneNumber}
+                                onChange={(e) => setAlternativePhoneNumber(e.target.value)}
+                                placeholder="+91 98765 43211"
+                              />
+                            </div>
+                          </Field>
+                        </div>
+
+                        <Divider />
+
+                        <div className="text-sm font-semibold text-foreground">Emergency Contact Details</div>
+                        <div className="grid gap-4 md:grid-cols-3">
+                          <Field label="Contact Name*">
+                            <div className="relative">
+                              <span className="absolute left-3.5 top-1/2 h-2 w-2 -translate-y-1/2 rounded-full bg-primary/70" />
+                              <input
+                                className="input-premium"
+                                value={emergencyContactName}
+                                onChange={(e) => setEmergencyContactName(e.target.value)}
+                                placeholder="Jane Doe"
+                              />
+                            </div>
+                          </Field>
+                          <Field label="Contact Phone*">
+                            <div className="relative">
+                              <span className="absolute left-3.5 top-1/2 h-2 w-2 -translate-y-1/2 rounded-full bg-primary/70" />
+                              <input
+                                className="input-premium"
+                                value={emergencyContactPhone}
+                                onChange={(e) => setEmergencyContactPhone(e.target.value)}
+                                placeholder="+91 98765 43210"
+                              />
+                            </div>
+                          </Field>
+                          <Field label="Relation*">
+                            <div className="relative">
+                              <span className="absolute left-3.5 top-1/2 h-2 w-2 -translate-y-1/2 rounded-full bg-primary/70" />
+                              <input
+                                className="input-premium"
+                                value={emergencyContactRelation}
+                                onChange={(e) => setEmergencyContactRelation(e.target.value)}
+                                placeholder="Spouse / Parent / Friend"
+                              />
+                            </div>
+                          </Field>
+                        </div>
+
+                        <Divider />
+
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <Field label="Date of Birth*">
+                            <div className="relative">
+                              <span className="absolute left-3.5 top-1/2 h-2 w-2 -translate-y-1/2 rounded-full bg-primary/70" />
+                              <input
+                                className="input-premium"
+                                value={dob}
+                                onChange={(e) => setDob(e.target.value)}
+                                placeholder="DD-MM-YYYY"
+                              />
+                            </div>
+                          </Field>
+                          <Field label="Place (optional)">
+                            <div className="relative">
+                              <span className="absolute left-3.5 top-1/2 h-2 w-2 -translate-y-1/2 rounded-full bg-primary/70" />
+                              <input
+                                className="input-premium"
+                                value={place}
+                                onChange={(e) => setPlace(e.target.value)}
+                                placeholder="City / State"
+                              />
+                            </div>
+                          </Field>
+                        </div>
+
+                        <Field label="Password*">
+                          <div className="relative">
+                            <span className="absolute left-3.5 top-1/2 h-2 w-2 -translate-y-1/2 rounded-full bg-primary/70" />
+                            <input
+                              className="input-premium pr-10"
+                              type="password"
+                              value={password}
+                              onChange={(e) => setPassword(e.target.value)}
+                              placeholder="Create a password"
+                            />
+                          </div>
+                        </Field>
+
+                        <Divider />
+
+                        <div className="grid gap-3 rounded-xl border border-border bg-card/30 p-4">
+                          <div className="text-sm font-semibold text-foreground">Consent & Permissions</div>
+
+                          <label className="flex items-start gap-3">
+                            <input
+                              type="checkbox"
+                              checked={consentLocationTracking}
+                              onChange={(e) => setConsentLocationTracking(e.target.checked)}
+                              style={{ marginTop: 3 }}
+                            />
+                            <div className="text-sm text-muted-foreground">
+                              I consent to real-time location tracking for safety and emergency response purposes.
+                            </div>
+                          </label>
+
+                          <label className="flex items-start gap-3">
+                            <input
+                              type="checkbox"
+                              checked={consentBlockchainStorage}
+                              onChange={(e) => setConsentBlockchainStorage(e.target.checked)}
+                              style={{ marginTop: 3 }}
+                            />
+                            <div className="text-sm text-muted-foreground">
+                              I consent to storing my verification credentials on blockchain/IPFS for secure verification and data protection.
+                            </div>
+                          </label>
+                        </div>
+
+                        <InlineRow className="pt-2">
+                          <Button
+                            disabled={busy || !consentLocationTracking || !consentBlockchainStorage}
+                            onClick={onRegister}
+                            className="w-full py-3"
+                          >
+                            {busy ? "Creating…" : "Create Tourist Digital ID"}
+                          </Button>
+                          <Link href="/login">
+                            <Button variant="ghost">Login</Button>
+                          </Link>
+                        </InlineRow>
+
+                        <div className="text-xs text-muted-foreground">
+                          Authorities?{" "}
+                          <Link className="font-semibold text-primary hover:underline" href="/authority/register">
+                            Register as Authority
+                          </Link>
+                        </div>
+                      </div>
+                    </div>
+                  </GlassCard>
                 </div>
-              </label>
+              </motion.div>
             </div>
-
-            <InlineRow className="pt-2">
-              <Button disabled={busy || !consentLocationTracking || !consentBlockchainStorage} onClick={onRegister}>
-                {busy ? "Creating…" : "Create Tourist Digital ID"}
-              </Button>
-              <Link href="/login" className="ml-auto">
-                <Button variant="ghost">Login</Button>
-              </Link>
-            </InlineRow>
-
-            <div className="text-xs text-white/60">
-              Authorities?{" "}
-              <Link className="text-cyan-200 hover:text-cyan-100" href="/authority/register">
-                Register as Authority
-              </Link>
-            </div>
-          </div>
-        </GlassCard>
+          </Container>
+        </div>
       </div>
 
-      <Toast
-        open={toastOpen}
-        title={toastTitle}
-        message={toastMessage}
-        tone={toastTone}
-        onClose={() => setToastOpen(false)}
-      />
-    </Container>
+      <Toast open={toastOpen} title={toastTitle} message={toastMessage} tone={toastTone} onClose={() => setToastOpen(false)} />
+    </div>
   );
 }
 

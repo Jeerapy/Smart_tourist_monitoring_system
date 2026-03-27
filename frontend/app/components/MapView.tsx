@@ -2,9 +2,8 @@
 
 import "leaflet/dist/leaflet.css";
 
-import L from "leaflet";
 import { useEffect, useMemo, useState } from "react";
-import { Circle, GeoJSON, MapContainer, Marker, TileLayer } from "react-leaflet";
+import { Circle, CircleMarker, GeoJSON, MapContainer, TileLayer } from "react-leaflet";
 import { backendFetch } from "../../lib/backend";
 import { Badge, GlassCard, InlineRow } from "./Ui";
 
@@ -62,17 +61,7 @@ export function MapView({ userLat, userLng, className, showPanel = true }: MapVi
     if (typeof userLat === "number" && typeof userLng === "number") return [userLat, userLng];
     return [12.9716, 77.5946]; // fallback (Bengaluru)
   }, [userLat, userLng]);
-
-  // Ensure leaflet marker icons work in Next bundling.
-  const userIcon = useMemo(() => {
-    return new L.DivIcon({
-      className: "",
-      html:
-        '<div style="width:14px;height:14px;border-radius:999px;background:rgba(34,211,238,0.95);box-shadow:0 0 0 4px rgba(34,211,238,0.18), 0 10px 30px rgba(34,211,238,0.25);border:1px solid rgba(255,255,255,0.35)"></div>',
-      iconSize: [14, 14],
-      iconAnchor: [7, 7],
-    });
-  }, []);
+  const mapKey = useMemo(() => `user-map-${center[0]}-${center[1]}`, [center]);
 
   async function loadZones() {
     setLoading(true);
@@ -108,21 +97,25 @@ export function MapView({ userLat, userLng, className, showPanel = true }: MapVi
           }
           className="mb-4"
         >
-          <div className="text-xs text-white/65">
+          <div className="text-xs text-muted-foreground">
             Shows your live location and authority-configured danger zones (circles + polygons).
           </div>
         </GlassCard>
       )}
 
-      <div className="overflow-hidden rounded-3xl border border-white/10 bg-white/5 shadow-[0_30px_90px_rgba(0,0,0,0.45)]">
-        <MapContainer center={center} zoom={14} style={{ height: 420, width: "100%" }}>
+      <div className="glass-card-elevated overflow-hidden rounded-3xl">
+        <MapContainer key={mapKey} center={center} zoom={14} style={{ height: 420, width: "100%" }}>
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
 
           {typeof userLat === "number" && typeof userLng === "number" && (
-            <Marker position={[userLat, userLng]} icon={userIcon} />
+            <CircleMarker
+              center={[userLat, userLng]}
+              radius={7}
+              pathOptions={{ color: "#22d3ee", weight: 2, fillColor: "#22d3ee", fillOpacity: 0.95 }}
+            />
           )}
 
           {circles.map((z) => {
@@ -174,7 +167,7 @@ export function MapView({ userLat, userLng, className, showPanel = true }: MapVi
       </div>
 
       {zonesErr ? (
-        <div className="mt-3 text-xs text-red-200/80">
+        <div className="mt-3 text-xs text-critical/90">
           Failed to load zones. Make sure you are logged in and the backend is running. ({zonesErr})
         </div>
       ) : null}

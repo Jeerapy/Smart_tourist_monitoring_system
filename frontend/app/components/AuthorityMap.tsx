@@ -1,8 +1,7 @@
 "use client";
 
-import L from "leaflet";
 import { useMemo } from "react";
-import { Circle, MapContainer, Marker, TileLayer } from "react-leaflet";
+import { Circle, CircleMarker, MapContainer, TileLayer } from "react-leaflet";
 import type { DangerZone, NearbyAlert } from "../../lib/authority";
 
 type Props = {
@@ -20,15 +19,6 @@ function riskColor(riskLevel: number): string {
   return "#ef4444";
 }
 
-function makeDotIcon(color: string) {
-  return new L.DivIcon({
-    className: "",
-    html: `<div style="width:14px;height:14px;border-radius:999px;background:${color};box-shadow:0 0 0 4px ${color}33,0 8px 20px ${color}55;border:1px solid rgba(255,255,255,0.35)"></div>`,
-    iconSize: [14, 14],
-    iconAnchor: [7, 7],
-  });
-}
-
 export function AuthorityMap({
   authorityLat,
   authorityLng,
@@ -41,19 +31,22 @@ export function AuthorityMap({
     if (typeof authorityLat === "number" && typeof authorityLng === "number") return [authorityLat, authorityLng];
     return [12.9716, 77.5946];
   }, [authorityLat, authorityLng]);
-
-  const authorityIcon = useMemo(() => makeDotIcon("rgba(34,211,238,0.95)"), []);
+  const mapKey = useMemo(() => `authority-map-${center[0]}-${center[1]}`, [center]);
 
   return (
-    <div className="overflow-hidden rounded-3xl border border-white/10 bg-white/5 shadow-[0_30px_90px_rgba(0,0,0,0.45)]">
-      <MapContainer center={center} zoom={13} style={{ height: 460, width: "100%" }}>
+    <div className="glass-card-elevated overflow-hidden rounded-3xl">
+      <MapContainer key={mapKey} center={center} zoom={13} style={{ height: 460, width: "100%" }}>
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
 
         {typeof authorityLat === "number" && typeof authorityLng === "number" && (
-          <Marker position={[authorityLat, authorityLng]} icon={authorityIcon} />
+          <CircleMarker
+            center={[authorityLat, authorityLng]}
+            radius={7}
+            pathOptions={{ color: "#22d3ee", weight: 2, fillColor: "#22d3ee", fillOpacity: 0.95 }}
+          />
         )}
 
         {zones
@@ -79,13 +72,13 @@ export function AuthorityMap({
           const lng = Number(a.user_last_location?.lng ?? a.trigger_lng);
           if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
           const isSelected = selectedAlertId === a.id;
-          const color = isSelected ? "rgba(244,63,94,0.95)" : "rgba(239,68,68,0.95)";
-          const icon = makeDotIcon(color);
+          const color = isSelected ? "#f43f5e" : "#ef4444";
           return (
-            <Marker
+            <CircleMarker
               key={a.id}
-              position={[lat, lng]}
-              icon={icon}
+              center={[lat, lng]}
+              radius={7}
+              pathOptions={{ color, weight: 2, fillColor: color, fillOpacity: 0.95 }}
               eventHandlers={{
                 click: () => onSelectAlert?.(a.id),
               }}

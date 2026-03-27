@@ -4,6 +4,7 @@ import Link from "next/link";
 import { clsx } from "clsx";
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useState } from "react";
+import { Shield } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
 import { backendFetch } from "../../lib/backend";
 
@@ -14,7 +15,7 @@ export function Container({
   children: React.ReactNode;
   className?: string;
 }) {
-  return <div className={clsx("mx-auto w-full max-w-6xl px-5 py-10", className)}>{children}</div>;
+  return <div className={clsx("mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 lg:px-8", className)}>{children}</div>;
 }
 
 export function TopNav() {
@@ -55,22 +56,45 @@ export function TopNav() {
   const dashboardHref = role === "authority" ? "/authority/dashboard" : "/user/dashboard";
 
   return (
-    <div className="sticky top-0 z-50 border-b border-white/10 bg-[linear-gradient(180deg,rgba(11,22,48,0.72),rgba(6,11,22,0.82))] backdrop-blur">
-      <div className="mx-auto flex w-full max-w-6xl items-center gap-3 px-5 py-3">
-        <Link href="/" className="group flex items-center gap-2">
-          <div className="h-9 w-9 rounded-xl border border-white/10 bg-white/5 shadow-[0_0_0_1px_rgba(255,255,255,0.06),0_14px_35px_rgba(0,0,0,0.35)]" />
+    <div className="sticky top-0 z-50 glass-nav">
+      <div className="mx-auto flex w-full max-w-7xl items-center gap-3 px-4 py-3 sm:px-6 lg:px-8">
+        <Link href="/" className="group flex items-center gap-2.5">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 transition-colors group-hover:bg-primary/20">
+            <Shield className="h-5 w-5 text-primary" />
+          </div>
           <div className="leading-tight">
-            <div className="text-sm font-semibold tracking-tight">Smart Tourist</div>
-            <div className="text-xs text-white/60">Safety • Geofence • SOS</div>
+            <div className="text-sm font-bold tracking-tight">Smart Tourist</div>
+            <div className="text-xs text-muted-foreground">Safety • Geofence • SOS</div>
           </div>
         </Link>
 
-        <div className="ml-auto hidden items-center gap-3 text-sm text-white/80 md:flex">
-          <Link className="hover:text-white" href="/register">
+        <div className="ml-auto hidden items-center gap-1 text-sm lg:flex">
+          <Link className="nav-link-underline px-3 py-2 text-muted-foreground hover:text-foreground" href="/#features">
+            Features
+          </Link>
+          <Link className="nav-link-underline px-3 py-2 text-muted-foreground hover:text-foreground" href="/#how-it-works">
+            How it works
+          </Link>
+          <Link className="nav-link-underline px-3 py-2 text-muted-foreground hover:text-foreground" href="/#about">
+            About
+          </Link>
+          <Link className="nav-link-underline px-3 py-2 text-muted-foreground hover:text-foreground" href="/register">
             Register
           </Link>
-          <Link className="hover:text-white" href={role ? dashboardHref : "/login"}>
+          <Link
+            className="btn-glow rounded-lg bg-primary px-4 py-2 font-semibold !text-white hover:opacity-90 no-underline hover:no-underline"
+            href={role ? dashboardHref : "/login"}
+          >
             {role ? "Open Dashboard" : "Login"}
+          </Link>
+        </div>
+
+        <div className="ml-auto flex items-center gap-2 text-sm lg:hidden">
+          <Link className="rounded-lg border border-border bg-secondary/50 px-3 py-1.5 text-foreground" href="/register">
+            Register
+          </Link>
+          <Link className="rounded-lg bg-primary px-3 py-1.5 font-semibold text-white" href={role ? dashboardHref : "/login"}>
+            {role ? "Dashboard" : "Login"}
           </Link>
         </div>
       </div>
@@ -92,13 +116,13 @@ export function GlassCard({
   return (
     <div
       className={clsx(
-        "rounded-2xl border border-white/10 bg-white/5 p-5 shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_20px_60px_rgba(0,0,0,0.45)] backdrop-blur",
+        "glass-card-elevated p-5",
         className
       )}
     >
       {(title || right) && (
         <div className="mb-4 flex items-start gap-3">
-          {title && <div className="text-sm font-semibold tracking-tight text-white/90">{title}</div>}
+          {title && <div className="text-sm font-semibold tracking-tight text-foreground">{title}</div>}
           <div className="ml-auto">{right}</div>
         </div>
       )}
@@ -118,15 +142,15 @@ export function Field({
 }) {
   return (
     <label className="grid gap-2">
-      <span className="text-sm font-medium text-white/85">{label}</span>
+      <span className="text-sm font-medium text-foreground">{label}</span>
       {children}
-      {hint && <span className="text-xs text-white/55">{hint}</span>}
+      {hint && <span className="text-xs text-muted-foreground">{hint}</span>}
     </label>
   );
 }
 
 export function Divider({ className }: { className?: string }) {
-  return <div className={clsx("my-5 h-px w-full bg-white/10", className)} />;
+  return <div className={clsx("my-5 h-px w-full bg-border", className)} />;
 }
 
 export function InlineRow({ children, className }: { children: React.ReactNode; className?: string }) {
@@ -144,22 +168,21 @@ export function Button({
   variant = "primary",
 }: {
   children: React.ReactNode;
-  onClick?: () => void;
+  onClick?: React.MouseEventHandler<HTMLButtonElement>;
   type?: "button" | "submit";
   disabled?: boolean;
   className?: string;
   variant?: ButtonVariant;
 }) {
   const base =
-    "inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition will-change-transform active:translate-y-[1px] disabled:cursor-not-allowed disabled:opacity-50";
+    "inline-flex items-center justify-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold transition-all active:translate-y-[1px] disabled:cursor-not-allowed disabled:opacity-50";
 
   const styles: Record<ButtonVariant, string> = {
-    primary:
-      "border border-white/10 bg-[linear-gradient(180deg,#2563EB,#1D4ED8)] text-white shadow-[0_10px_30px_rgba(37,99,235,0.25)] hover:brightness-110",
-    secondary: "border border-white/10 bg-white/10 text-white/90 hover:bg-white/12",
-    ghost: "border border-white/10 bg-transparent text-white/80 hover:bg-white/5 hover:text-white",
+    primary: "btn-glow border-primary bg-primary text-primary-foreground hover:opacity-90",
+    secondary: "border-border bg-secondary text-secondary-foreground hover:bg-secondary/80",
+    ghost: "border-border bg-transparent text-muted-foreground hover:bg-secondary/60 hover:text-foreground",
     danger:
-      "border border-white/10 bg-[linear-gradient(180deg,#EF4444,#B91C1C)] text-white shadow-[0_10px_30px_rgba(239,68,68,0.18)] hover:brightness-110",
+      "border-critical/70 bg-critical/90 text-critical-foreground shadow-[0_10px_30px_rgba(239,68,68,0.18)] hover:brightness-110",
   };
 
   return (
@@ -182,11 +205,11 @@ export function Badge({
   tone?: "neutral" | "success" | "warning" | "danger" | "info";
 }) {
   const tones: Record<string, string> = {
-    neutral: "bg-white/10 text-white/80 border-white/10",
-    success: "bg-emerald-400/15 text-emerald-200 border-emerald-300/20",
-    warning: "bg-amber-400/15 text-amber-200 border-amber-300/20",
-    danger: "bg-red-400/15 text-red-200 border-red-300/20",
-    info: "bg-cyan-400/15 text-cyan-200 border-cyan-300/20",
+    neutral: "border-border bg-secondary text-foreground/80",
+    success: "border-safe/30 bg-safe/15 text-safe-foreground",
+    warning: "border-warning/30 bg-warning/15 text-warning",
+    danger: "border-critical/30 bg-critical/15 text-critical",
+    info: "border-primary/30 bg-primary/15 text-primary",
   };
   return (
     <span className={clsx("inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold", tones[tone])}>
@@ -199,7 +222,7 @@ export function Pre({ value, className }: { value: any; className?: string }) {
   return (
     <pre
       className={clsx(
-        "max-h-[360px] overflow-auto rounded-2xl border border-white/10 bg-black/30 p-4 text-xs text-white/85",
+        "max-h-[360px] overflow-auto rounded-2xl border border-border bg-card/70 p-4 text-xs text-foreground/90",
         className
       )}
     >
@@ -237,18 +260,22 @@ export function Modal({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
         >
-          <button aria-label="Close modal" className="absolute inset-0 bg-black/60" onClick={onClose} />
+          <button
+            aria-label="Close modal"
+            className="absolute inset-0 bg-background/90 backdrop-blur-sm"
+            onClick={onClose}
+          />
           <motion.div
-            className="relative w-full max-w-lg rounded-2xl border border-white/10 bg-[rgba(10,18,38,0.75)] p-5 shadow-[0_30px_90px_rgba(0,0,0,0.6)] backdrop-blur"
+            className="relative w-full max-w-lg rounded-2xl border border-border/70 bg-background/95 p-5 text-foreground shadow-[0_30px_90px_rgba(0,0,0,0.6)] backdrop-blur-xl"
             initial={{ y: 14, scale: 0.98, opacity: 0 }}
             animate={{ y: 0, scale: 1, opacity: 1 }}
             exit={{ y: 10, scale: 0.98, opacity: 0 }}
             transition={{ duration: 0.18 }}
           >
             <div className="mb-4 flex items-start gap-3">
-              {title && <div className="text-base font-semibold text-white/90">{title}</div>}
+              {title && <div className="text-base font-semibold text-foreground">{title}</div>}
               <button
-                className="ml-auto rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-xs text-white/80 hover:bg-white/10"
+                className="ml-auto rounded-lg border border-border bg-secondary/70 px-2 py-1 text-xs text-muted-foreground hover:bg-secondary"
                 onClick={onClose}
               >
                 Esc
@@ -276,10 +303,10 @@ export function Toast({
   onClose: () => void;
 }) {
   const toneStyles: Record<string, string> = {
-    info: "border-cyan-300/20 bg-cyan-400/10",
-    success: "border-emerald-300/20 bg-emerald-400/10",
-    warning: "border-amber-300/20 bg-amber-400/10",
-    danger: "border-red-300/20 bg-red-400/10",
+    info: "border-primary/30 bg-primary/10",
+    success: "border-safe/30 bg-safe/10",
+    warning: "border-warning/30 bg-warning/10",
+    danger: "border-critical/30 bg-critical/10",
   };
 
   return (
@@ -292,14 +319,14 @@ export function Toast({
           exit={{ opacity: 0, y: 12, scale: 0.98 }}
           transition={{ duration: 0.18 }}
         >
-          <div className={clsx("rounded-2xl border p-4 backdrop-blur", toneStyles[tone])}>
+          <div className={clsx("glass-card rounded-2xl border p-4", toneStyles[tone])}>
             <div className="flex items-start gap-3">
               <div className="min-w-0">
-                <div className="text-sm font-semibold text-white/90">{title}</div>
-                {message && <div className="mt-1 text-xs text-white/70">{message}</div>}
+                <div className="text-sm font-semibold text-foreground">{title}</div>
+                {message && <div className="mt-1 text-xs text-muted-foreground">{message}</div>}
               </div>
               <button
-                className="ml-auto rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-xs text-white/80 hover:bg-white/10"
+                className="ml-auto rounded-lg border border-border bg-secondary/60 px-2 py-1 text-xs text-muted-foreground hover:bg-secondary"
                 onClick={onClose}
               >
                 Close
