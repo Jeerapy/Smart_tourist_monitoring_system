@@ -92,7 +92,13 @@ class SupabaseRest:
         rows = await self._get(
             "profiles",
             bearer_token=bearer_token,
-            params={"select": "id,role,full_name,dob,place,is_verified,verified_at", "id": f"eq.{user_id}"},
+            params={
+                "select": (
+                    "id,role,full_name,dob,place,is_verified,verified_at,"
+                    "consent_location_tracking,consent_blockchain_storage"
+                ),
+                "id": f"eq.{user_id}",
+            },
         )
         if not rows:
             return {}

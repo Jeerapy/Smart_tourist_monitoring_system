@@ -275,9 +275,21 @@ async def authority_nearby_alerts(
     for a in open_alerts:
         uid = a.get("user_id")
         ll = last_by_user.get(uid)
-        if not ll:
+
+        # Prefer last known location; fall back to alert trigger lat/lng (e.g. SOS).
+        src_lat: float | None = None
+        src_lng: float | None = None
+        if ll and ll.get("lat") is not None and ll.get("lng") is not None:
+            src_lat = float(ll["lat"])
+            src_lng = float(ll["lng"])
+        elif a.get("trigger_lat") is not None and a.get("trigger_lng") is not None:
+            src_lat = float(a["trigger_lat"])
+            src_lng = float(a["trigger_lng"])
+
+        if src_lat is None or src_lng is None:
             continue
-        d = haversine_m(lat, lng, float(ll["lat"]), float(ll["lng"]))
+
+        d = haversine_m(lat, lng, src_lat, src_lng)
         if d <= radius:
             results.append({**a, "user_last_location": ll, "distance_m": d})
 

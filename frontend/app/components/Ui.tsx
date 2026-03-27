@@ -232,7 +232,7 @@ export function Modal({
     <AnimatePresence>
       {open && (
         <motion.div
-          className="fixed inset-0 z-[60] flex items-center justify-center p-5"
+          className="fixed inset-0 z-[1000] flex items-center justify-center p-5"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -286,7 +286,7 @@ export function Toast({
     <AnimatePresence>
       {open && (
         <motion.div
-          className="fixed bottom-5 right-5 z-[70] w-[min(420px,calc(100vw-40px))]"
+          className="fixed bottom-5 right-5 z-[1100] w-[min(420px,calc(100vw-40px))]"
           initial={{ opacity: 0, y: 16, scale: 0.98 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 12, scale: 0.98 }}
