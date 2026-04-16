@@ -52,6 +52,7 @@ export default function UserDashboard() {
   const [uploadRes, setUploadRes] = useState<any>(null);
   const [documents, setDocuments] = useState<any[]>([]);
   const [digitalId, setDigitalId] = useState<any>(null);
+  const [viewingDocId, setViewingDocId] = useState<string | null>(null);
 
   const [toastOpen, setToastOpen] = useState(false);
   const [toastTone, setToastTone] = useState<"info" | "success" | "warning" | "danger">("info");
@@ -295,12 +296,22 @@ export default function UserDashboard() {
   }
 
   async function viewMyDocument(docId: string) {
+    setViewingDocId(docId);
     try {
       const blob = await backendFetchBlob(`/me/documents/${encodeURIComponent(docId)}/view`);
       const url = URL.createObjectURL(blob);
-      window.open(url, "_blank", "noopener,noreferrer");
+      // Trigger a download without opening a blank tab.
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `document-${docId}`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
     } catch (e: any) {
       showToast("danger", "Document view failed", e?.message ?? String(e));
+    } finally {
+      setViewingDocId((cur) => (cur === docId ? null : cur));
     }
   }
 
@@ -337,8 +348,8 @@ export default function UserDashboard() {
         </div>
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-[380px_1fr]">
-        <div className="grid gap-5">
+      <div className="grid gap-5 lg:grid-cols-[380px_minmax(0,1fr)]">
+        <div className="grid min-w-0 gap-5">
           <GlassCard
             title="Emergency"
             right={
@@ -581,14 +592,32 @@ export default function UserDashboard() {
                   <div className="text-xs text-muted-foreground">No uploaded documents found yet.</div>
                 ) : (
                   documents.map((d) => (
-                    <div key={d.id} className="glass-card rounded-xl p-3">
+                    <div key={d.id} className="glass-card min-w-0 overflow-hidden rounded-xl p-3">
                       <div className="mb-1 text-xs text-muted-foreground">{d.file_name || d.doc_type || "Document"}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {d.ipfs_cid ? `CID: ${d.ipfs_cid}` : "No CID yet"} • {d.onchain_tx_hash ? `TX: ${d.onchain_tx_hash}` : "No TX yet"}
+                      <div className="grid gap-1 text-xs text-muted-foreground">
+                        <div
+                          className="min-w-0 break-all overflow-hidden [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:3]"
+                        >
+                          {d.ipfs_cid ? `CID: ${d.ipfs_cid}` : "No CID yet"}
+                        </div>
+                        <div className="min-w-0 break-all overflow-hidden [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]">
+                          {d.onchain_tx_hash ? `TX: ${d.onchain_tx_hash}` : "No TX yet"}
+                        </div>
                       </div>
                       <InlineRow className="mt-2">
-                        <Button variant="secondary" onClick={() => viewMyDocument(d.id)}>
-                          View
+                        <Button
+                          variant="secondary"
+                          disabled={viewingDocId === d.id}
+                          onClick={() => viewMyDocument(d.id)}
+                        >
+                          {viewingDocId === d.id ? (
+                            <span className="inline-flex items-center gap-2">
+                              <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-foreground/20 border-t-foreground/70" />
+                              Downloading…
+                            </span>
+                          ) : (
+                            "View"
+                          )}
                         </Button>
                       </InlineRow>
                     </div>
@@ -599,7 +628,7 @@ export default function UserDashboard() {
           </GlassCard>
         </div>
 
-        <div className="grid gap-5">
+        <div className="grid min-w-0 gap-5">
           <MapView userLat={userLat} userLng={userLng} />
 
           <GlassCard title="Geofence response (last ping)">

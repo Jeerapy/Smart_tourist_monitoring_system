@@ -2,8 +2,8 @@
 
 import "leaflet/dist/leaflet.css";
 
-import { useEffect, useMemo, useState } from "react";
-import { Circle, CircleMarker, GeoJSON, MapContainer, TileLayer } from "react-leaflet";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Circle, CircleMarker, GeoJSON, MapContainer, TileLayer, useMap } from "react-leaflet";
 import { backendFetch } from "../../lib/backend";
 import { Badge, GlassCard, InlineRow } from "./Ui";
 
@@ -24,6 +24,15 @@ export type MapViewProps = {
   className?: string;
   showPanel?: boolean;
 };
+
+function RecenterMap({ center, enabled }: { center: [number, number]; enabled: boolean }) {
+  const map = useMap();
+  useEffect(() => {
+    if (!enabled) return;
+    map.setView(center, map.getZoom(), { animate: false });
+  }, [map, center, enabled]);
+  return null;
+}
 
 function clampRisk(risk: any): number {
   const n = Number(risk);
@@ -57,11 +66,19 @@ export function MapView({ userLat, userLng, className, showPanel = true }: MapVi
   const [zonesErr, setZonesErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  const lastGoodCenterRef = useRef<[number, number]>([12.9716, 77.5946]); // fallback (Bengaluru)
+  const hasUserLocation = typeof userLat === "number" && Number.isFinite(userLat) && typeof userLng === "number" && Number.isFinite(userLng);
+
+  useEffect(() => {
+    if (!hasUserLocation) return;
+    lastGoodCenterRef.current = [userLat as number, userLng as number];
+  }, [hasUserLocation, userLat, userLng]);
+
   const center = useMemo<[number, number]>(() => {
-    if (typeof userLat === "number" && typeof userLng === "number") return [userLat, userLng];
-    return [12.9716, 77.5946]; // fallback (Bengaluru)
-  }, [userLat, userLng]);
-  const mapKey = useMemo(() => `user-map-${center[0]}-${center[1]}`, [center]);
+    // Never jump back to fallback while the user location is temporarily unavailable.
+    if (hasUserLocation) return [userLat as number, userLng as number];
+    return lastGoodCenterRef.current;
+  }, [hasUserLocation, userLat, userLng]);
 
   async function loadZones() {
     setLoading(true);
@@ -103,12 +120,14 @@ export function MapView({ userLat, userLng, className, showPanel = true }: MapVi
         </GlassCard>
       )}
 
-      <div className="glass-card-elevated overflow-hidden rounded-3xl">
-        <MapContainer key={mapKey} center={center} zoom={14} style={{ height: 420, width: "100%" }}>
-          <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          />
+      <div className="glass-card-elevated relative overflow-hidden rounded-3xl">
+        <div className="h-[420px] w-full overflow-hidden">
+          <MapContainer center={center} zoom={14} style={{ height: "100%", width: "100%" }}>
+            <RecenterMap center={center} enabled={hasUserLocation} />
+            <TileLayer
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            />
 
           {typeof userLat === "number" && typeof userLng === "number" && (
             <CircleMarker
@@ -163,7 +182,8 @@ export function MapView({ userLat, userLng, className, showPanel = true }: MapVi
               />
             );
           })}
-        </MapContainer>
+          </MapContainer>
+        </div>
       </div>
 
       {zonesErr ? (
