@@ -330,6 +330,7 @@ export default function AuthorityDashboard() {
                   <option value="ALL">ALL</option>
                   <option value="SOS">SOS</option>
                   <option value="GEOFENCE">GEOFENCE</option>
+                  <option value="ANOMALY">ANOMALY</option>
                 </select>
               </Field>
               <Field label="Min risk">

@@ -1,4 +1,4 @@
-export type AlertType = "GEOFENCE" | "SOS";
+export type AlertType = "GEOFENCE" | "SOS" | "ANOMALY";
 export type AlertStatus = "OPEN" | "ACKED" | "RESOLVED";
 
 export type DangerZone = {

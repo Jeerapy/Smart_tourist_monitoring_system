@@ -73,7 +73,18 @@ async def get_auth_context(request: Request) -> AuthContext:
 
     # Load role from profiles via PostgREST using the user's JWT (RLS enforced).
     sb = SupabaseRest()
-    profile = await sb.get_profile(user_id=user_id, bearer_token=token)
+    try:
+        profile = await sb.get_profile(user_id=user_id, bearer_token=token)
+    except httpx.TimeoutException as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Auth profile service timeout. Please retry.",
+        ) from e
+    except httpx.HTTPError as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Auth profile service unavailable. Please retry.",
+        ) from e
     role = profile.get("role")
     if role not in ("user", "authority"):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Profile role not set")

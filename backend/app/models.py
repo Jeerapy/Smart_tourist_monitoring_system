@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 
 
 ZoneShapeType = Literal["CIRCLE", "POLYGON"]
-AlertType = Literal["GEOFENCE", "SOS"]
+AlertType = Literal["GEOFENCE", "SOS", "ANOMALY"]
 AlertSource = Literal["rule_engine", "ai"]
 
 

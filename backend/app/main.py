@@ -80,6 +80,13 @@ def _alert_defaults(alert_type: str, zone_risk_level: int | None = None) -> dict
             "risk_level": 5,
             "source": "rule_engine",
         }
+    if alert_type == "ANOMALY":
+        return {
+            "summary": "AI detected unusual movement pattern",
+            "severity": 3,
+            "risk_level": 3,
+            "source": "ai",
+        }
     return {"summary": "Alert triggered", "severity": 1, "risk_level": 1, "source": "rule_engine"}
 
 

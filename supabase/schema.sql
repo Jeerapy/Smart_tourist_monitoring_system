@@ -192,13 +192,19 @@ create table if not exists public.alerts (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references public.profiles(id) on delete cascade,
 
-  type text not null check (type in ('GEOFENCE', 'SOS')),
+  type text not null check (type in ('GEOFENCE', 'SOS', 'ANOMALY')),
   -- Extendable enum by convention (text), MVP uses OPEN/ACKED/RESOLVED
   status text not null default 'OPEN',
   severity int not null default 1,
   source text not null default 'rule_engine',
   risk_level int not null default 1,
   summary text not null,
+
+  -- AI metadata (optional; populated when source = 'ai')
+  ai_score double precision,
+  ai_reason text,
+  ai_model_version text,
+  ai_features jsonb,
 
   triggered_by_zone_id uuid references public.danger_zones(id),
   trigger_lat double precision,
@@ -216,6 +222,33 @@ create index if not exists alerts_status_created_idx on public.alerts(status, cr
 create index if not exists alerts_type_created_idx on public.alerts(type, created_at desc);
 
 alter table public.alerts enable row level security;
+
+-- Ensure existing projects can migrate the CHECK constraint safely.
+-- Postgres typically names the inline check constraint `alerts_type_check`.
+alter table public.alerts drop constraint if exists alerts_type_check;
+alter table public.alerts
+  add constraint alerts_type_check check (type in ('GEOFENCE', 'SOS', 'ANOMALY'));
+alter table public.alerts drop constraint if exists alerts_source_check;
+alter table public.alerts
+  add constraint alerts_source_check check (source in ('rule_engine', 'ai'));
+
+-- =========================
+-- AI detections (optional audit trail)
+-- =========================
+create table if not exists public.ai_detections (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  kind text not null default 'ANOMALY',
+  score double precision,
+  model_version text,
+  window_start timestamptz,
+  window_end timestamptz,
+  features jsonb,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists ai_detections_user_created_idx on public.ai_detections(user_id, created_at desc);
+alter table public.ai_detections enable row level security;
 
 -- =========================
 -- Helper: check if caller is authority

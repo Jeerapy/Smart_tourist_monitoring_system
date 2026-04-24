@@ -1,4 +1,9 @@
 fastapi
 uvicorn[standard]
 pydantic
+httpx
+numpy
+scikit-learn
+joblib
+python-dotenv
 
