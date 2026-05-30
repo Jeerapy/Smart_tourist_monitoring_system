@@ -1,0 +1,14 @@
+fastapi
+uvicorn[standard]
+pydantic
+pydantic-settings
+httpx
+python-jose[cryptography]
+pillow
+pytesseract
+PyPDF2
+rapidfuzz
+python-multipart
+cryptography
+web3
+
